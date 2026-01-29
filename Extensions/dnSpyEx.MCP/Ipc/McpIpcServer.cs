@@ -87,7 +87,7 @@ namespace dnSpyEx.MCP.Ipc {
 			}
 		}
 
-		async Task HandleClientAsync(NamedPipeServerStream pipe, CancellationToken token) {
+		async Task HandleClientAsync(NamedPipeServerStream pipe, CancellationToken token, int clientId) {
 			var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 			using var reader = new StreamReader(pipe, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
 			using var writer = new StreamWriter(pipe, encoding, bufferSize: 4096, leaveOpen: true) { AutoFlush = true };
@@ -99,12 +99,14 @@ namespace dnSpyEx.MCP.Ipc {
 						line = await reader.ReadLineAsync().ConfigureAwait(false);
 					}
 					catch (IOException ex) {
-						logger.Warn($"MCP pipe read failed: {ex.Message}");
+						logger.Warn($"MCP pipe read failed ({clientId}): {ex.Message}");
 						break;
 					}
 
-					if (line is null)
+					if (line is null) {
+						logger.Info($"MCP pipe EOF ({clientId})");
 						break;
+					}
 					if (string.IsNullOrWhiteSpace(line))
 						continue;
 
@@ -113,26 +115,30 @@ namespace dnSpyEx.MCP.Ipc {
 						request = JObject.Parse(line);
 					}
 					catch (JsonException ex) {
-						logger.Warn($"MCP pipe: JSON parse error: {ex.Message}");
+						logger.Warn($"MCP pipe JSON parse error ({clientId}): {ex.Message}");
 						await WriteErrorAsync(writer, null, -32700, "Parse error").ConfigureAwait(false);
 						continue;
 					}
 
+					var method = request["method"]?.Value<string>() ?? "(unknown)";
+					logger.Info($"MCP pipe request ({clientId}): {method}");
 					var response = handler.Handle(request);
-					if (response is null)
+					if (response is null) {
+						logger.Info($"MCP pipe notification ({clientId})");
 						continue;
+					}
 
 					try {
 						await writer.WriteLineAsync(response.ToString(Formatting.None)).ConfigureAwait(false);
 					}
 					catch (IOException ex) {
-						logger.Warn($"MCP pipe write failed: {ex.Message}");
+						logger.Warn($"MCP pipe write failed ({clientId}): {ex.Message}");
 						break;
 					}
 				}
 			}
 			catch (Exception ex) {
-				logger.Error($"MCP pipe handler crashed: {ex}");
+				logger.Error($"MCP pipe handler crashed ({clientId}): {ex}");
 			}
 		}
 
@@ -190,7 +196,7 @@ namespace dnSpyEx.MCP.Ipc {
 
 		async Task HandleClientLifetimeAsync(NamedPipeServerStream pipe, CancellationToken token, int clientId) {
 			using (pipe) {
-				await HandleClientAsync(pipe, token).ConfigureAwait(false);
+				await HandleClientAsync(pipe, token, clientId).ConfigureAwait(false);
 			}
 			logger.Info($"MCP pipe client disconnected: {clientId}");
 		}
