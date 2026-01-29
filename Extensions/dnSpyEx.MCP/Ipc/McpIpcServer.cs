@@ -83,35 +83,47 @@ namespace dnSpyEx.MCP.Ipc {
 			using var reader = new StreamReader(pipe, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
 			using var writer = new StreamWriter(pipe, encoding, bufferSize: 4096, leaveOpen: true) { AutoFlush = true };
 
-			while (!token.IsCancellationRequested && pipe.IsConnected) {
-				string? line;
-				try {
-					line = await reader.ReadLineAsync().ConfigureAwait(false);
-				}
-				catch (IOException) {
-					break;
-				}
+			try {
+				while (!token.IsCancellationRequested && pipe.IsConnected) {
+					string? line;
+					try {
+						line = await reader.ReadLineAsync().ConfigureAwait(false);
+					}
+					catch (IOException ex) {
+						logger.Warn($"MCP pipe read failed: {ex.Message}");
+						break;
+					}
 
-				if (line is null)
-					break;
-				if (string.IsNullOrWhiteSpace(line))
-					continue;
+					if (line is null)
+						break;
+					if (string.IsNullOrWhiteSpace(line))
+						continue;
 
-				JObject? request;
-				try {
-					request = JObject.Parse(line);
+					JObject? request;
+					try {
+						request = JObject.Parse(line);
+					}
+					catch (JsonException ex) {
+						logger.Warn($"MCP pipe: JSON parse error: {ex.Message}");
+						await WriteErrorAsync(writer, null, -32700, "Parse error").ConfigureAwait(false);
+						continue;
+					}
+
+					var response = handler.Handle(request);
+					if (response is null)
+						continue;
+
+					try {
+						await writer.WriteLineAsync(response.ToString(Formatting.None)).ConfigureAwait(false);
+					}
+					catch (IOException ex) {
+						logger.Warn($"MCP pipe write failed: {ex.Message}");
+						break;
+					}
 				}
-				catch (JsonException) {
-					logger.Warn("MCP pipe: JSON parse error");
-					await WriteErrorAsync(writer, null, -32700, "Parse error").ConfigureAwait(false);
-					continue;
-				}
-
-				var response = handler.Handle(request);
-				if (response is null)
-					continue;
-
-				await writer.WriteLineAsync(response.ToString(Formatting.None)).ConfigureAwait(false);
+			}
+			catch (Exception ex) {
+				logger.Error($"MCP pipe handler crashed: {ex}");
 			}
 		}
 

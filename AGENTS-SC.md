@@ -42,6 +42,7 @@
 - 2026-01-29：新增 Output 日志输出及对 BamlTabSaver NullReferenceException 的定向抑制；并在 BamlTabSaver 中加入空引用保护。
 - 2026-01-29：由于本仓库源码与已安装的 net8 二进制存在 API 不匹配，无法直接编译 net8 版 dnSpy.BamlDecompiler；已通过插件抑制崩溃作为替代方案。
 - 2026-01-29：bridge 改为首次工具调用时再连接管道（懒连接），并在失败时重置管道，避免启动即报 “Pipe hasn't been connected yet”。
+- 2026-01-29：插件端新增管道读写错误日志，bridge 侧对“断开的管道”做一次重连重试以缓解偶发错误。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

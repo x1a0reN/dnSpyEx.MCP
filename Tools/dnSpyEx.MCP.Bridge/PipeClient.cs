@@ -24,6 +24,15 @@ namespace dnSpyEx.MCP.Bridge {
 		public async Task<JObject> CallAsync(JObject request, CancellationToken token) {
 			await gate.WaitAsync(token).ConfigureAwait(false);
 			try {
+				return await CallCoreAsync(request, token, allowRetry: true).ConfigureAwait(false);
+			}
+			finally {
+				gate.Release();
+			}
+		}
+
+		async Task<JObject> CallCoreAsync(JObject request, CancellationToken token, bool allowRetry) {
+			try {
 				await EnsureConnectedAsync(token).ConfigureAwait(false);
 				var lineRequest = request.ToString(Formatting.None);
 				await writer!.WriteLineAsync(lineRequest).ConfigureAwait(false);
@@ -32,8 +41,9 @@ namespace dnSpyEx.MCP.Bridge {
 					throw new IOException("Pipe closed");
 				return JObject.Parse(line);
 			}
-			finally {
-				gate.Release();
+			catch (IOException) when (allowRetry) {
+				ResetPipe();
+				return await CallCoreAsync(request, token, allowRetry: false).ConfigureAwait(false);
 			}
 		}
 
