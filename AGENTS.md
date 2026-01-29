@@ -43,6 +43,7 @@
 - 2026-01-29: net8 build of dnSpy.BamlDecompiler cannot be produced from this repo due to API mismatch with the installed net8 binaries; plugin suppresses the crash instead.
 - 2026-01-29: Bridge now connects to the pipe on first tool call (lazy connect) and resets the pipe on failures to avoid early "Pipe hasn't been connected yet" exits.
 - 2026-01-29: Added pipe read/write error logging on the plugin side and a one-time reconnect retry in the bridge to mitigate transient broken-pipe errors.
+- 2026-01-29: Plugin build now auto-copies dnSpyEx.MCP.x.dll into D:\逆向\工具-逆向\dnspyEx\bin\Extensions by default (disable with DisableDnSpyExInstallCopy=true or override DnSpyExInstallDir).
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
