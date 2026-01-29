@@ -14,8 +14,6 @@ namespace dnSpyEx.MCP.Bridge {
 					cts.Cancel();
 				};
 
-				await client.ConnectAsync(TimeSpan.FromSeconds(5), cts.Token).ConfigureAwait(false);
-
 				var server = new McpServer(client);
 				await server.RunAsync(cts.Token).ConfigureAwait(false);
 				return 0;

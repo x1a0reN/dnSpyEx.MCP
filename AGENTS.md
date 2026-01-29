@@ -16,10 +16,10 @@
 - Extensions\dnSpyEx.MCP\Ipc\McpIpcServer.cs: NamedPipe JSON-RPC server (line-delimited); supports DNSPYEX_MCP_PIPE override.
 - Extensions\dnSpyEx.MCP\Ipc\McpRequestHandler.cs: RPC dispatch + MVP tools; runs on UI dispatcher.
 - Tools\dnSpyEx.MCP.Bridge\dnSpyEx.MCP.Bridge.csproj: MCP stdio bridge console app.
-- Tools\dnSpyEx.MCP.Bridge\Program.cs: Bridge entrypoint; connects to pipe and runs MCP loop.
+- Tools\dnSpyEx.MCP.Bridge\Program.cs: Bridge entrypoint; runs MCP loop (pipe connects on demand).
 - Tools\dnSpyEx.MCP.Bridge\McpServer.cs: MCP JSON-RPC (initialize/tools/*); forwards tool calls to pipe.
 - Tools\dnSpyEx.MCP.Bridge\ToolCatalog.cs: Tool definitions and input schemas mapped to RPC methods.
-- Tools\dnSpyEx.MCP.Bridge\PipeClient.cs: NamedPipe client (line-delimited JSON).
+- Tools\dnSpyEx.MCP.Bridge\PipeClient.cs: NamedPipe client (line-delimited JSON), lazy connect with timeout.
 - Tools\dnSpyEx.MCP.Bridge\McpPipeDefaults.cs: Pipe name constants and env var name.
 - dnSpy.sln: Solution updated to include dnSpyEx.MCP and dnSpyEx.MCP.Bridge.
 
@@ -41,6 +41,7 @@
 - 2026-01-29: Added net8.0-windows target for the plugin with external references via DnSpyExBin; bridge now targets net8.0 + net10.0-windows; builds succeeded for net8/net48/net10.
 - 2026-01-29: Added output logging and a targeted suppression for BamlTabSaver NullReferenceException; added a null-guard in BamlTabSaver.
 - 2026-01-29: net8 build of dnSpy.BamlDecompiler cannot be produced from this repo due to API mismatch with the installed net8 binaries; plugin suppresses the crash instead.
+- 2026-01-29: Bridge now connects to the pipe on first tool call (lazy connect) and resets the pipe on failures to avoid early "Pipe hasn't been connected yet" exits.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.

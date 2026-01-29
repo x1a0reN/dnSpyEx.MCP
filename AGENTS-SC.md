@@ -16,10 +16,10 @@
 - Extensions\dnSpyEx.MCP\Ipc\McpIpcServer.cs：NamedPipe JSON-RPC 服务器（按行读取）；支持 DNSPYEX_MCP_PIPE 覆盖管道名。
 - Extensions\dnSpyEx.MCP\Ipc\McpRequestHandler.cs：RPC 分发与 MVP 工具实现；在 UI 线程执行。
 - Tools\dnSpyEx.MCP.Bridge\dnSpyEx.MCP.Bridge.csproj：MCP stdio bridge 控制台项目。
-- Tools\dnSpyEx.MCP.Bridge\Program.cs：bridge 入口，连接管道并运行 MCP 循环。
+- Tools\dnSpyEx.MCP.Bridge\Program.cs：bridge 入口，运行 MCP 循环（按需连接管道）。
 - Tools\dnSpyEx.MCP.Bridge\McpServer.cs：MCP JSON-RPC（initialize/tools/*）；将工具调用转发到管道。
 - Tools\dnSpyEx.MCP.Bridge\ToolCatalog.cs：工具定义与输入 schema，映射到 RPC 方法。
-- Tools\dnSpyEx.MCP.Bridge\PipeClient.cs：NamedPipe 客户端（按行传 JSON）。
+- Tools\dnSpyEx.MCP.Bridge\PipeClient.cs：NamedPipe 客户端（按行传 JSON），按需连接并带超时。
 - Tools\dnSpyEx.MCP.Bridge\McpPipeDefaults.cs：管道名常量与环境变量名。
 - dnSpy.sln：解决方案已包含 dnSpyEx.MCP 与 dnSpyEx.MCP.Bridge。
 
@@ -41,6 +41,7 @@
 - 2026-01-29：为插件新增 net8.0-windows 目标并通过 DnSpyExBin 引用外部依赖；bridge 目标为 net8.0 + net10.0-windows；net8/net48/net10 构建均成功。
 - 2026-01-29：新增 Output 日志输出及对 BamlTabSaver NullReferenceException 的定向抑制；并在 BamlTabSaver 中加入空引用保护。
 - 2026-01-29：由于本仓库源码与已安装的 net8 二进制存在 API 不匹配，无法直接编译 net8 版 dnSpy.BamlDecompiler；已通过插件抑制崩溃作为替代方案。
+- 2026-01-29：bridge 改为首次工具调用时再连接管道（懒连接），并在失败时重置管道，避免启动即报 “Pipe hasn't been connected yet”。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

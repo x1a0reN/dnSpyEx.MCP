@@ -9,29 +9,25 @@ using Newtonsoft.Json.Linq;
 
 namespace dnSpyEx.MCP.Bridge {
 	sealed class PipeClient : IDisposable {
-		readonly NamedPipeClientStream pipe;
-		readonly StreamReader reader;
-		readonly StreamWriter writer;
+		const int DefaultConnectTimeoutSeconds = 10;
+
+		readonly string pipeName;
+		NamedPipeClientStream? pipe;
+		StreamReader? reader;
+		StreamWriter? writer;
 		readonly SemaphoreSlim gate = new SemaphoreSlim(1, 1);
 
 		public PipeClient(string pipeName) {
-			pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
-			var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-			reader = new StreamReader(pipe, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
-			writer = new StreamWriter(pipe, encoding, bufferSize: 4096, leaveOpen: true) { AutoFlush = true };
-		}
-
-		public async Task ConnectAsync(TimeSpan timeout, CancellationToken token) {
-			using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-			cts.CancelAfter(timeout);
-			await pipe.ConnectAsync(cts.Token).ConfigureAwait(false);
+			this.pipeName = string.IsNullOrWhiteSpace(pipeName) ? McpPipeDefaults.DefaultPipeName : pipeName;
 		}
 
 		public async Task<JObject> CallAsync(JObject request, CancellationToken token) {
 			await gate.WaitAsync(token).ConfigureAwait(false);
 			try {
-				await writer.WriteLineAsync(request.ToString(Formatting.None)).ConfigureAwait(false);
-				var line = await reader.ReadLineAsync().ConfigureAwait(false);
+				await EnsureConnectedAsync(token).ConfigureAwait(false);
+				var lineRequest = request.ToString(Formatting.None);
+				await writer!.WriteLineAsync(lineRequest).ConfigureAwait(false);
+				var line = await reader!.ReadLineAsync().ConfigureAwait(false);
 				if (line is null)
 					throw new IOException("Pipe closed");
 				return JObject.Parse(line);
@@ -41,10 +37,41 @@ namespace dnSpyEx.MCP.Bridge {
 			}
 		}
 
+		async Task EnsureConnectedAsync(CancellationToken token) {
+			if (pipe is not null && pipe.IsConnected)
+				return;
+
+			ResetPipe();
+			pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+			using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+			cts.CancelAfter(TimeSpan.FromSeconds(DefaultConnectTimeoutSeconds));
+			try {
+				await pipe.ConnectAsync(cts.Token).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) when (!token.IsCancellationRequested) {
+				throw new TimeoutException($"Timed out connecting to pipe '{pipeName}'.");
+			}
+			catch {
+				ResetPipe();
+				throw;
+			}
+
+			var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+			reader = new StreamReader(pipe, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
+			writer = new StreamWriter(pipe, encoding, bufferSize: 4096, leaveOpen: true) { AutoFlush = true };
+		}
+
+		void ResetPipe() {
+			try { writer?.Dispose(); } catch { }
+			try { reader?.Dispose(); } catch { }
+			try { pipe?.Dispose(); } catch { }
+			writer = null;
+			reader = null;
+			pipe = null;
+		}
+
 		public void Dispose() {
-			pipe.Dispose();
-			reader.Dispose();
-			writer.Dispose();
+			ResetPipe();
 			gate.Dispose();
 		}
 	}
