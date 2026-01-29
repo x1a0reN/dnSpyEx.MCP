@@ -51,6 +51,7 @@
 - 2026-01-29：新增每个客户端处理器的生命周期日志与异常捕获，便于定位连接后立即断开的原因。
 - 2026-01-29：将 JToken.ToString(Formatting) 替换为 JsonConvert.SerializeObject，避免 dnSpyEx 运行时 Newtonsoft.Json 版本不匹配导致的崩溃。
 - 2026-01-29：管道安全权限增加 CreateNewInstance，避免创建额外服务器实例时报 “Access denied” 日志刷屏。
+- 2026-01-29：允许 listTypes/namespace decompile 的 namespace 为空字符串，并新增 dnspy.help 工具在 tools/list 中提供使用说明。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。
@@ -135,3 +136,4 @@ dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
 
 ## 备注
 - 用户要求每次进度更新都同步记录到 AGENTS.md。
+- 用户确认只使用 .NET 10 构建（不再使用 net48），并要求构建时不要使用 DisableDnSpyExInstallCopy=true 以便自动复制插件。

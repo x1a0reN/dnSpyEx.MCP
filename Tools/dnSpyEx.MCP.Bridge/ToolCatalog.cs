@@ -8,6 +8,15 @@ namespace dnSpyEx.MCP.Bridge {
 		public ToolCatalog() {
 			var list = new List<ToolDef> {
 				new ToolDef(
+					"dnspy.help",
+					"Describe dnSpyEx MCP tools, required parameters, and common usage tips.",
+					new JObject {
+						["type"] = "object",
+						["properties"] = new JObject(),
+						["additionalProperties"] = false,
+					},
+					"__local.help"),
+				new ToolDef(
 					"dnspy.listAssemblies",
 					"List loaded assemblies and modules.",
 					new JObject {
@@ -33,7 +42,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"listNamespaces"),
 				new ToolDef(
 					"dnspy.listTypes",
-					"List types in a module namespace.",
+					"List types in a module namespace (use empty string for global namespace).",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject {

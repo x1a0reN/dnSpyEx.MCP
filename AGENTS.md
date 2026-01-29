@@ -51,6 +51,7 @@
 - 2026-01-29: Added handler lifecycle logging and exception capture around per-client pipe tasks to surface immediate disconnect causes.
 - 2026-01-29: Replaced JToken.ToString(Formatting) usage with JsonConvert.SerializeObject to avoid Newtonsoft.Json version mismatch crashes in dnSpyEx runtime.
 - 2026-01-29: Added PipeAccessRights.CreateNewInstance to pipe security so additional server instances can be created without access denied spam.
+- 2026-01-29: Allowed empty namespace parameter for listTypes/decompile namespace, and added a dnspy.help tool with usage tips exposed via tools/list.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
@@ -135,6 +136,7 @@ Workflow:
 
 ## Notes
 - User wants progress tracked in AGENTS.md on each update.
+- User confirms they use .NET 10 builds only (net48 is not used) and wants build commands without DisableDnSpyExInstallCopy=true so the plugin auto-copies.
 
 ## Rules
 - After each change, confirm build succeeds with no errors, then git commit and push to the repo.

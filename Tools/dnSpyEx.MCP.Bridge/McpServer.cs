@@ -95,6 +95,18 @@ namespace dnSpyEx.MCP.Bridge {
 				return MakeError(id, -32601, $"Unknown tool: {name}");
 
 			BridgeLog.Info($"tool call: {name}");
+			if (tool.Method == "__local.help") {
+				return MakeResult(id, new JObject {
+					["content"] = new JArray {
+						new JObject {
+							["type"] = "text",
+							["text"] = HelpText,
+						},
+					},
+					["isError"] = false,
+				});
+			}
+
 			var rpcReq = new JObject {
 				["jsonrpc"] = "2.0",
 				["id"] = Guid.NewGuid().ToString("N"),
@@ -162,5 +174,20 @@ namespace dnSpyEx.MCP.Bridge {
 				},
 			};
 		}
+
+		const string HelpText =
+@"dnSpyEx MCP tools (quick guide)
+
+Common flow:
+1) dnspy.listAssemblies -> pick moduleMvid
+2) dnspy.listNamespaces(moduleMvid) -> choose namespace ("" = global)
+3) dnspy.listTypes(moduleMvid, namespace) -> pick type token
+4) dnspy.listMembers(moduleMvid, typeToken) -> pick member token
+5) dnspy.decompile(kind, moduleMvid, namespace/token) -> source text
+
+Notes:
+- namespace parameter can be empty string for global namespace.
+- token/typeToken are uint metadata tokens from listTypes/listMembers.
+- decompile kind: assembly|module|namespace|type|method|field|property|event.";
 	}
 }

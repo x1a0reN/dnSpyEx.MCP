@@ -88,7 +88,7 @@ namespace dnSpyEx.MCP.Ipc {
 
 		JToken ListTypes(JObject? parameters) {
 			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
-			var ns = RequireString(parameters, "namespace");
+			var ns = RequireStringAllowEmpty(parameters, "namespace");
 			var types = module.GetTypes()
 				.Where(t => string.Equals(Utf8ToString(t.Namespace), ns, StringComparison.Ordinal))
 				.Select(t => new JObject {
@@ -138,7 +138,7 @@ namespace dnSpyEx.MCP.Ipc {
 				decompiler.Decompile(module, output, ctx);
 				break;
 			case "namespace":
-				var ns = RequireString(parameters, "namespace");
+				var ns = RequireStringAllowEmpty(parameters, "namespace");
 				var types = module.GetTypes()
 					.Where(t => string.Equals(Utf8ToString(t.Namespace), ns, StringComparison.Ordinal))
 					.ToArray();
@@ -226,6 +226,13 @@ namespace dnSpyEx.MCP.Ipc {
 		static string RequireString(JObject? parameters, string name) {
 			var value = parameters?[name]?.Value<string>();
 			if (string.IsNullOrWhiteSpace(value))
+				throw new RpcException(-32602, $"Missing parameter: {name}");
+			return value;
+		}
+
+		static string RequireStringAllowEmpty(JObject? parameters, string name) {
+			var value = parameters?[name]?.Value<string>();
+			if (value is null)
 				throw new RpcException(-32602, $"Missing parameter: {name}");
 			return value;
 		}
