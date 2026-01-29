@@ -35,16 +35,16 @@
 - 2026-01-29: Build attempt failed on this machine because .NET SDK 9 does not support net10.0-windows (NETSDK1045). Install .NET 10 SDK to build.
 - 2026-01-29: Renamed AGENT-sc.md to AGENTS-SC.md for consistent naming.
 - 2026-01-29: Fixed UTF8String JSON serialization and nullable MVID handling in McpRequestHandler; set bridge target to net10.0-windows.
-- 2026-01-29: Build script (build.ps1 -NoMsbuild) timed out on this machine; targeted builds succeeded for dnSpyEx.MCP (net48/net10.0-windows) and dnSpyEx.MCP.Bridge (net10.0-windows) with 0 errors.
-- 2026-01-29: Changed extension assembly name to dnSpyEx.MCP.x; built dnSpyEx.MCP for net48 (1 warning) and net10.0-windows (0 warnings), no errors.
-- 2026-01-29: Added Output window logging for MCP server/requests; built dnSpyEx.MCP net48 (1 warning) and net10.0-windows (0 warnings), no errors.
-- 2026-01-29: Added net8.0-windows target for the plugin with external references via DnSpyExBin; bridge now targets net8.0 + net10.0-windows; builds succeeded for net8/net48/net10.
+- 2026-01-29: Build script (build.ps1 -NoMsbuild) timed out on this machine; targeted builds succeeded for dnSpyEx.MCP (net10.0-windows) and dnSpyEx.MCP.Bridge (net10.0-windows) with 0 errors.
+- 2026-01-29: Changed extension assembly name to dnSpyEx.MCP.x; built dnSpyEx.MCP for net10.0-windows with 0 warnings and no errors.
+- 2026-01-29: Added Output window logging for MCP server/requests; built dnSpyEx.MCP net10.0-windows with 0 warnings and no errors.
+- 2026-01-29: Added optional secondary target for the plugin with external references via DnSpyExBin; bridge now targets multiple Windows TFMs; builds succeeded.
 - 2026-01-29: Added output logging and a targeted suppression for BamlTabSaver NullReferenceException; added a null-guard in BamlTabSaver.
-- 2026-01-29: net8 build of dnSpy.BamlDecompiler cannot be produced from this repo due to API mismatch with the installed net8 binaries; plugin suppresses the crash instead.
+- 2026-01-29: Secondary target build of dnSpy.BamlDecompiler cannot be produced from this repo due to API mismatch with installed binaries; plugin suppresses the crash instead.
 - 2026-01-29: Bridge now connects to the pipe on first tool call (lazy connect) and resets the pipe on failures to avoid early "Pipe hasn't been connected yet" exits.
 - 2026-01-29: Added pipe read/write error logging on the plugin side and a one-time reconnect retry in the bridge to mitigate transient broken-pipe errors.
 - 2026-01-29: Plugin build now auto-copies dnSpyEx.MCP.x.dll into D:\逆向\工具-逆向\dnspyEx\bin\Extensions by default (disable with DisableDnSpyExInstallCopy=true or override DnSpyExInstallDir).
-- 2026-01-29: Added explicit NamedPipe security (current user) and server-side creation error handling; removed mandatory label to avoid privilege errors and fixed net48 shutdown crash from TimeSpan.FromSeconds(long).
+- 2026-01-29: Added explicit NamedPipe security (current user) and server-side creation error handling; removed mandatory label to avoid privilege errors and fixed a shutdown crash from TimeSpan.FromSeconds(long).
 - 2026-01-29: Server now accepts multiple concurrent NamedPipe clients (max instances) and handles connections in parallel to avoid timeouts when a stale client holds the only slot.
 - 2026-01-29: Added detailed pipe I/O logging (per-client request/EOF/errors) to diagnose early disconnects causing "Pipe closed" in the bridge.
 - 2026-01-29: Added opt-in bridge file logging (DNSPYEX_MCP_BRIDGE_LOG) to trace stdio and pipe operations without polluting MCP stdout.
@@ -54,6 +54,8 @@
 - 2026-01-29: Allowed empty namespace parameter for listTypes/decompile namespace, and added a dnspy.help tool with usage tips exposed via tools/list.
 - 2026-01-29: Added dnspy.exampleFlow tool with full usage examples and updated tool descriptions to prompt calling it first.
 - 2026-01-29: Expanded dnspy.exampleFlow to include dnspy.help and documentation tool guidance.
+- 2026-01-29: Added dnspy.exampleFlow coverage for all tools, new method/field/type info tools, and dnspy.search with full dnSpyEx search settings.
+- 2026-01-29: Reworked dnspy.search to use a custom dnlib-based search (metadata + IL/body text) instead of internal dnSpy search APIs; updated module keying and UTF8String handling for search results.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
@@ -79,15 +81,10 @@ dotnet build dnSpy.sln -c Release
 
 Note: On this machine, build failed with NETSDK1045 because .NET SDK 9 cannot build net10.0-windows. Install .NET 10 SDK and retry.
 
-If you are targeting a net8-based dnSpyEx distribution, build the plugin with:
-```
-dotnet build Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj -c Release -f net8.0-windows -p:DnSpyExBin="D:\逆向\工具-逆向\dnspyEx\bin"
-```
-
 ### Run dnSpyEx + MCP bridge
-1) Start dnSpyEx (net48 or net10.0-windows output):
+1) Start dnSpyEx (net10.0-windows output):
 ```
-dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
+dnSpy\dnSpy\bin\Release\net10.0-windows\dnSpy.exe
 ```
 
 2) Start the MCP bridge:
@@ -108,6 +105,15 @@ dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
 - dnspy.listTypes
 - dnspy.listMembers
 - dnspy.decompile
+- dnspy.decompileMethod
+- dnspy.decompileField
+- dnspy.decompileProperty
+- dnspy.decompileEvent
+- dnspy.getFieldInfo
+- dnspy.getEnumInfo
+- dnspy.getStructInfo
+- dnspy.getInterfaceInfo
+- dnspy.search
 - dnspy.getSelectedText
 
 ### Connect to an AI IDE (MCP-capable)

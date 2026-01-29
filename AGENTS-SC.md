@@ -35,16 +35,16 @@
 - 2026-01-29：在本机尝试构建失败，原因是 .NET SDK 9 不支持 net10.0-windows（NETSDK1045）；需安装 .NET 10 SDK。
 - 2026-01-29：将 AGENT-sc.md 重命名为 AGENTS-SC.md，以统一命名。
 - 2026-01-29：修复 McpRequestHandler 中 UTF8String 序列化与可空 MVID 处理；将 bridge 目标框架改为 net10.0-windows。
-- 2026-01-29：build.ps1 -NoMsbuild 在本机超时；已单独构建 dnSpyEx.MCP（net48/net10.0-windows）与 dnSpyEx.MCP.Bridge（net10.0-windows），均 0 错误。
-- 2026-01-29：扩展程序集名改为 dnSpyEx.MCP.x；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
-- 2026-01-29：新增 Output 窗口日志输出（MCP 服务/请求）；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
-- 2026-01-29：为插件新增 net8.0-windows 目标并通过 DnSpyExBin 引用外部依赖；bridge 目标为 net8.0 + net10.0-windows；net8/net48/net10 构建均成功。
+- 2026-01-29：build.ps1 -NoMsbuild 在本机超时；已单独构建 dnSpyEx.MCP（net10.0-windows）与 dnSpyEx.MCP.Bridge（net10.0-windows），均 0 错误。
+- 2026-01-29：扩展程序集名改为 dnSpyEx.MCP.x；构建 dnSpyEx.MCP：net10.0-windows（0 警告），均无错误。
+- 2026-01-29：新增 Output 窗口日志输出（MCP 服务/请求）；构建 dnSpyEx.MCP：net10.0-windows（0 警告），均无错误。
+- 2026-01-29：为插件新增 目标并通过 DnSpyExBin 引用外部依赖；bridge 目标为 net10.0-windows；net10 构建均成功。
 - 2026-01-29：新增 Output 日志输出及对 BamlTabSaver NullReferenceException 的定向抑制；并在 BamlTabSaver 中加入空引用保护。
-- 2026-01-29：由于本仓库源码与已安装的 net8 二进制存在 API 不匹配，无法直接编译 net8 版 dnSpy.BamlDecompiler；已通过插件抑制崩溃作为替代方案。
+- 2026-01-29：由于本仓库源码与已安装的 二进制存在 API 不匹配，无法直接编译 版 dnSpy.BamlDecompiler；已通过插件抑制崩溃作为替代方案。
 - 2026-01-29：bridge 改为首次工具调用时再连接管道（懒连接），并在失败时重置管道，避免启动即报 “Pipe hasn't been connected yet”。
 - 2026-01-29：插件端新增管道读写错误日志，bridge 侧对“断开的管道”做一次重连重试以缓解偶发错误。
 - 2026-01-29：插件构建后默认自动复制 dnSpyEx.MCP.x.dll 到 D:\逆向\工具-逆向\dnspyEx\bin\Extensions（可用 DisableDnSpyExInstallCopy=true 关闭，或通过 DnSpyExInstallDir 覆盖路径）。
-- 2026-01-29：新增 NamedPipe 安全设置（仅当前用户）并补充服务器创建错误处理；移除强制完整性标签以避免权限错误，并修复 net48 退出时因 TimeSpan.FromSeconds(long) 触发的崩溃。
+- 2026-01-29：新增 NamedPipe 安全设置（仅当前用户）并补充服务器创建错误处理；移除强制完整性标签以避免权限错误，并修复 退出时因 TimeSpan.FromSeconds(long) 触发的崩溃。
 - 2026-01-29：服务器现在允许多个 NamedPipe 客户端并行连接（最大实例数），避免旧连接占用导致新连接超时。
 - 2026-01-29：新增更详细的管道 I/O 日志（按客户端记录请求/EOF/错误），用于定位 “Pipe closed” 早退问题。
 - 2026-01-29：新增 bridge 端可选文件日志（DNSPYEX_MCP_BRIDGE_LOG），用于追踪 stdio 与 pipe 流程且不污染 MCP stdout。
@@ -54,6 +54,8 @@
 - 2026-01-29：允许 listTypes/namespace decompile 的 namespace 为空字符串，并新增 dnspy.help 工具在 tools/list 中提供使用说明。
 - 2026-01-29：新增 dnspy.exampleFlow 工具，提供各工具的完整用法示例，并在工具描述中提示优先阅读。
 - 2026-01-29：补充 dnspy.exampleFlow，明确包含 dnspy.help 等文档工具的用法说明。
+- 2026-01-29：dnspy.exampleFlow 现覆盖全部工具用法，新增方法/字段/类型信息工具，并加入 dnspy.search（完整搜索参数）。
+- 2026-01-29: dnspy.search switched to a dnlib-based custom search (metadata + IL/body text), avoiding internal search APIs; updated module keys and UTF8String handling.
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。
@@ -79,15 +81,13 @@ dotnet build dnSpy.sln -c Release
 
 注意：本机上构建失败，原因是 .NET SDK 9 不能构建 net10.0-windows。安装 .NET 10 SDK 后重试。
 
-如果你的 dnSpyEx 分发包是 net8，插件可用以下命令构建：
-```
-dotnet build Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj -c Release -f net8.0-windows -p:DnSpyExBin="D:\逆向\工具-逆向\dnspyEx\bin"
+dotnet build Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj -c Release -f -p:DnSpyExBin="D:\逆向\工具-逆向\dnspyEx\bin"
 ```
 
 ### 运行 dnSpyEx + MCP bridge
-1) 启动 dnSpyEx（net48 或 net10.0-windows 输出）：
+1) 启动 dnSpyEx（net10.0-windows 输出）：
 ```
-dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
+dnSpy\dnSpy\bin\Release\net10.0-windows\dnSpy.exe
 ```
 
 2) 启动 MCP bridge：
@@ -108,6 +108,15 @@ dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
 - dnspy.listTypes
 - dnspy.listMembers
 - dnspy.decompile
+- dnspy.decompileMethod
+- dnspy.decompileField
+- dnspy.decompileProperty
+- dnspy.decompileEvent
+- dnspy.getFieldInfo
+- dnspy.getEnumInfo
+- dnspy.getStructInfo
+- dnspy.getInterfaceInfo
+- dnspy.search
 - dnspy.getSelectedText
 
 ### 接入 AI IDE（支持 MCP）

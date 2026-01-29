@@ -189,17 +189,20 @@ namespace dnSpyEx.MCP.Bridge {
 		const string HelpText =
 @"dnSpyEx MCP tools (quick guide)
 
+Read first:
+- dnspy.exampleFlow (full usage examples)
+
 Common flow:
 1) dnspy.listAssemblies -> pick moduleMvid
 2) dnspy.listNamespaces(moduleMvid) -> choose namespace ("" = global)
-3) dnspy.listTypes(moduleMvid, namespace) -> pick type token
+3) dnspy.listTypes(moduleMvid, namespace) -> pick typeToken
 4) dnspy.listMembers(moduleMvid, typeToken) -> pick member token
-5) dnspy.decompile(kind, moduleMvid, namespace/token) -> source text
+5) dnspy.decompileMethod / dnspy.decompileField / dnspy.decompileProperty / dnspy.decompileEvent
 
 Notes:
 - namespace parameter can be empty string for global namespace.
 - token/typeToken are uint metadata tokens from listTypes/listMembers.
-- decompile kind: assembly|module|namespace|type|method|field|property|event.";
+- dnspy.decompile only supports method|field|property|event (no full type output).";
 
 		const string ExampleFlowText =
 @"dnSpyEx MCP example flow (detailed)
@@ -233,27 +236,49 @@ Arguments:
 { ""moduleMvid"": ""<GUID>"", ""typeToken"": 33554433 }
 Returns: methods/fields/properties/events with token.
 
-5) Decompile
-Tool: dnspy.decompile
-Kinds and examples:
-- assembly:
-  { ""kind"": ""assembly"", ""moduleMvid"": ""<GUID>"" }
-- module:
-  { ""kind"": ""module"", ""moduleMvid"": ""<GUID>"" }
-- namespace:
-  { ""kind"": ""namespace"", ""moduleMvid"": ""<GUID>"", ""namespace"": ""My.Namespace"" }
-- type:
-  { ""kind"": ""type"", ""moduleMvid"": ""<GUID>"", ""token"": 33554433 }
-- method:
+5) Decompile (method/field/property/event only)
+Tools:
+- dnspy.decompileMethod
+  { ""moduleMvid"": ""<GUID>"", ""token"": 100663297 }
+- dnspy.decompileField
+  { ""moduleMvid"": ""<GUID>"", ""token"": 67108865 }
+- dnspy.decompileProperty
+  { ""moduleMvid"": ""<GUID>"", ""token"": 385875968 }
+- dnspy.decompileEvent
+  { ""moduleMvid"": ""<GUID>"", ""token"": 536870912 }
+- dnspy.decompile (kind = method|field|property|event)
   { ""kind"": ""method"", ""moduleMvid"": ""<GUID>"", ""token"": 100663297 }
-- field:
-  { ""kind"": ""field"", ""moduleMvid"": ""<GUID>"", ""token"": 67108865 }
-- property:
-  { ""kind"": ""property"", ""moduleMvid"": ""<GUID>"", ""token"": 385875968 }
-- event:
-  { ""kind"": ""event"", ""moduleMvid"": ""<GUID>"", ""token"": 536870912 }
 
-6) Get selected text
+6) Field / enum / struct / interface info
+- dnspy.getFieldInfo
+  { ""moduleMvid"": ""<GUID>"", ""token"": 67108865 }
+- dnspy.getEnumInfo
+  { ""moduleMvid"": ""<GUID>"", ""typeToken"": 33554433 }
+- dnspy.getStructInfo
+  { ""moduleMvid"": ""<GUID>"", ""typeToken"": 33554433 }
+- dnspy.getInterfaceInfo
+  { ""moduleMvid"": ""<GUID>"", ""typeToken"": 33554433 }
+
+7) Search (full dnSpyEx search settings)
+Tool: dnspy.search
+Arguments (minimal):
+{ ""searchText"": ""Player"" }
+Arguments (full example):
+{
+  ""searchText"": ""Player"",
+  ""searchType"": ""type"",
+  ""searchLocation"": ""allFiles"",
+  ""caseSensitive"": false,
+  ""matchWholeWords"": false,
+  ""matchAnySearchTerm"": false,
+  ""searchDecompiledData"": true,
+  ""searchFrameworkAssemblies"": true,
+  ""searchCompilerGeneratedMembers"": true,
+  ""syntaxHighlight"": true,
+  ""maxResults"": 5000
+}
+
+8) Get selected text
 Tool: dnspy.getSelectedText
 Arguments: {}
 Returns: hasViewer, isEmpty, caretPosition, text.
