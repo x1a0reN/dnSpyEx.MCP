@@ -48,6 +48,7 @@
 - 2026-01-29: Server now accepts multiple concurrent NamedPipe clients (max instances) and handles connections in parallel to avoid timeouts when a stale client holds the only slot.
 - 2026-01-29: Added detailed pipe I/O logging (per-client request/EOF/errors) to diagnose early disconnects causing "Pipe closed" in the bridge.
 - 2026-01-29: Added opt-in bridge file logging (DNSPYEX_MCP_BRIDGE_LOG) to trace stdio and pipe operations without polluting MCP stdout.
+- 2026-01-29: Added handler lifecycle logging and exception capture around per-client pipe tasks to surface immediate disconnect causes.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.

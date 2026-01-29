@@ -195,8 +195,14 @@ namespace dnSpyEx.MCP.Ipc {
 		}
 
 		async Task HandleClientLifetimeAsync(NamedPipeServerStream pipe, CancellationToken token, int clientId) {
-			using (pipe) {
-				await HandleClientAsync(pipe, token, clientId).ConfigureAwait(false);
+			logger.Info($"MCP pipe handler start: {clientId}");
+			try {
+				using (pipe) {
+					await HandleClientAsync(pipe, token, clientId).ConfigureAwait(false);
+				}
+			}
+			catch (Exception ex) {
+				logger.Error($"MCP pipe handler failed ({clientId}): {ex}");
 			}
 			logger.Info($"MCP pipe client disconnected: {clientId}");
 		}
