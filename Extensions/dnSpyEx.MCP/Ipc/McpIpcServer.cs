@@ -2,6 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,29 +54,35 @@ namespace dnSpyEx.MCP.Ipc {
 
 		async Task RunAsync(CancellationToken token) {
 			while (!token.IsCancellationRequested) {
-				using var pipe = new NamedPipeServerStream(
-					pipeName,
-					PipeDirection.InOut,
-					1,
-					PipeTransmissionMode.Byte,
-					PipeOptions.Asynchronous);
-
+				NamedPipeServerStream pipe;
 				try {
-					await pipe.WaitForConnectionAsync(token).ConfigureAwait(false);
-				}
-				catch (OperationCanceledException) {
-					return;
+					pipe = CreateServerPipe();
 				}
 				catch (Exception ex) {
-					logger.Error($"MCP pipe wait failed: {ex.Message}");
+					logger.Error($"MCP pipe create failed: {ex.Message}");
 					Debug.WriteLine(ex);
-					await Task.Delay(250, token).ConfigureAwait(false);
+					await Task.Delay(500, token).ConfigureAwait(false);
 					continue;
 				}
 
-				logger.Info("MCP pipe client connected");
-				await HandleClientAsync(pipe, token).ConfigureAwait(false);
-				logger.Info("MCP pipe client disconnected");
+				using (pipe) {
+					try {
+						await pipe.WaitForConnectionAsync(token).ConfigureAwait(false);
+					}
+					catch (OperationCanceledException) {
+						return;
+					}
+					catch (Exception ex) {
+						logger.Error($"MCP pipe wait failed: {ex.Message}");
+						Debug.WriteLine(ex);
+						await Task.Delay(250, token).ConfigureAwait(false);
+						continue;
+					}
+
+					logger.Info("MCP pipe client connected");
+					await HandleClientAsync(pipe, token).ConfigureAwait(false);
+					logger.Info("MCP pipe client disconnected");
+				}
 			}
 		}
 
@@ -138,6 +146,66 @@ namespace dnSpyEx.MCP.Ipc {
 				["error"] = error,
 			};
 			return writer.WriteLineAsync(response.ToString(Formatting.None));
+		}
+
+		NamedPipeServerStream CreateServerPipe() {
+			try {
+				var security = BuildPipeSecurity();
+#if NETFRAMEWORK
+				return new NamedPipeServerStream(
+					pipeName,
+					PipeDirection.InOut,
+					1,
+					PipeTransmissionMode.Byte,
+					PipeOptions.Asynchronous,
+					4096,
+					4096,
+					security);
+#else
+				return NamedPipeServerStreamAcl.Create(
+					pipeName,
+					PipeDirection.InOut,
+					1,
+					PipeTransmissionMode.Byte,
+					PipeOptions.Asynchronous,
+					4096,
+					4096,
+					security);
+#endif
+			}
+			catch (Exception ex) when (
+				ex is NotSupportedException ||
+				ex is PlatformNotSupportedException ||
+				ex is UnauthorizedAccessException) {
+				logger.Warn($"MCP pipe security fallback: {ex.Message}");
+				return new NamedPipeServerStream(
+					pipeName,
+					PipeDirection.InOut,
+					1,
+					PipeTransmissionMode.Byte,
+					PipeOptions.Asynchronous);
+			}
+		}
+
+		static PipeSecurity BuildPipeSecurity() {
+			var security = new PipeSecurity();
+			var user = WindowsIdentity.GetCurrent().User;
+			if (user is not null)
+				security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+
+			var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+			security.AddAccessRule(new PipeAccessRule(admins, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+
+			TrySetMediumIntegrity(security);
+			return security;
+		}
+
+		static void TrySetMediumIntegrity(PipeSecurity security) {
+			try {
+				security.SetSecurityDescriptorSddlForm("S:(ML;;NW;;;ME)", AccessControlSections.Audit);
+			}
+			catch {
+			}
 		}
 	}
 }
