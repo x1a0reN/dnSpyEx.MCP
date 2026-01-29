@@ -44,7 +44,7 @@
 - 2026-01-29：bridge 改为首次工具调用时再连接管道（懒连接），并在失败时重置管道，避免启动即报 “Pipe hasn't been connected yet”。
 - 2026-01-29：插件端新增管道读写错误日志，bridge 侧对“断开的管道”做一次重连重试以缓解偶发错误。
 - 2026-01-29：插件构建后默认自动复制 dnSpyEx.MCP.x.dll 到 D:\逆向\工具-逆向\dnspyEx\bin\Extensions（可用 DisableDnSpyExInstallCopy=true 关闭，或通过 DnSpyExInstallDir 覆盖路径）。
-- 2026-01-29：新增 NamedPipe 安全设置（当前用户 + 中等完整性）并补充服务器创建错误处理，避免管道静默启动失败并允许非管理员客户端连接。
+- 2026-01-29：新增 NamedPipe 安全设置（仅当前用户）并补充服务器创建错误处理；移除强制完整性标签以避免权限错误，并修复 net48 退出时因 TimeSpan.FromSeconds(long) 触发的崩溃。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

@@ -42,7 +42,7 @@ namespace dnSpyEx.MCP.Ipc {
 				return;
 			cts.Cancel();
 			try {
-				serverTask?.Wait(TimeSpan.FromSeconds(2));
+				serverTask?.Wait(TimeSpan.FromSeconds(2.0));
 			}
 			catch (AggregateException) {
 			}
@@ -196,16 +196,7 @@ namespace dnSpyEx.MCP.Ipc {
 			var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
 			security.AddAccessRule(new PipeAccessRule(admins, PipeAccessRights.ReadWrite, AccessControlType.Allow));
 
-			TrySetMediumIntegrity(security);
 			return security;
-		}
-
-		static void TrySetMediumIntegrity(PipeSecurity security) {
-			try {
-				security.SetSecurityDescriptorSddlForm("S:(ML;;NW;;;ME)", AccessControlSections.Audit);
-			}
-			catch {
-			}
 		}
 	}
 }
