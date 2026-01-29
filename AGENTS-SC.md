@@ -53,6 +53,7 @@
 - 2026-01-29：管道安全权限增加 CreateNewInstance，避免创建额外服务器实例时报 “Access denied” 日志刷屏。
 - 2026-01-29：允许 listTypes/namespace decompile 的 namespace 为空字符串，并新增 dnspy.help 工具在 tools/list 中提供使用说明。
 - 2026-01-29：新增 dnspy.exampleFlow 工具，提供各工具的完整用法示例，并在工具描述中提示优先阅读。
+- 2026-01-29：补充 dnspy.exampleFlow，明确包含 dnspy.help 等文档工具的用法说明。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

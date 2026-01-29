@@ -204,8 +204,9 @@ Notes:
 		const string ExampleFlowText =
 @"dnSpyEx MCP example flow (detailed)
 
-Always start by reading this once:
-- dnspy.exampleFlow
+0) Read the docs tools
+- dnspy.exampleFlow: full usage examples (this text).
+- dnspy.help: short summary and tips.
 
 1) List modules
 Tool: dnspy.listAssemblies

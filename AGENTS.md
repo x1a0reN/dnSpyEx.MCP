@@ -53,6 +53,7 @@
 - 2026-01-29: Added PipeAccessRights.CreateNewInstance to pipe security so additional server instances can be created without access denied spam.
 - 2026-01-29: Allowed empty namespace parameter for listTypes/decompile namespace, and added a dnspy.help tool with usage tips exposed via tools/list.
 - 2026-01-29: Added dnspy.exampleFlow tool with full usage examples and updated tool descriptions to prompt calling it first.
+- 2026-01-29: Expanded dnspy.exampleFlow to include dnspy.help and documentation tool guidance.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
