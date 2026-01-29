@@ -49,6 +49,7 @@
 - 2026-01-29：新增更详细的管道 I/O 日志（按客户端记录请求/EOF/错误），用于定位 “Pipe closed” 早退问题。
 - 2026-01-29：新增 bridge 端可选文件日志（DNSPYEX_MCP_BRIDGE_LOG），用于追踪 stdio 与 pipe 流程且不污染 MCP stdout。
 - 2026-01-29：新增每个客户端处理器的生命周期日志与异常捕获，便于定位连接后立即断开的原因。
+- 2026-01-29：将 JToken.ToString(Formatting) 替换为 JsonConvert.SerializeObject，避免 dnSpyEx 运行时 Newtonsoft.Json 版本不匹配导致的崩溃。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

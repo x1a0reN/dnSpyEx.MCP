@@ -129,7 +129,7 @@ namespace dnSpyEx.MCP.Ipc {
 					}
 
 					try {
-						await writer.WriteLineAsync(response.ToString(Formatting.None)).ConfigureAwait(false);
+						await writer.WriteLineAsync(SerializeToken(response)).ConfigureAwait(false);
 					}
 					catch (IOException ex) {
 						logger.Warn($"MCP pipe write failed ({clientId}): {ex.Message}");
@@ -152,7 +152,7 @@ namespace dnSpyEx.MCP.Ipc {
 				["id"] = id,
 				["error"] = error,
 			};
-			return writer.WriteLineAsync(response.ToString(Formatting.None));
+			return writer.WriteLineAsync(SerializeToken(response));
 		}
 
 		NamedPipeServerStream CreateServerPipe() {
@@ -218,5 +218,8 @@ namespace dnSpyEx.MCP.Ipc {
 
 			return security;
 		}
+
+		static string SerializeToken(JToken token) =>
+			JsonConvert.SerializeObject(token, Formatting.None);
 	}
 }
