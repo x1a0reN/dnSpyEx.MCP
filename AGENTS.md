@@ -32,11 +32,91 @@
 - 2026-01-29: Added dnSpyEx.MCP extension project with NamedPipe JSON-RPC server and MVP handlers.
 - 2026-01-29: Added dnSpyEx.MCP.Bridge console project (stdio MCP -> NamedPipe).
 - 2026-01-29: Updated dnSpy.sln to include both projects.
+- 2026-01-29: Build attempt failed on this machine because .NET SDK 9 does not support net10.0-windows (NETSDK1045). Install .NET 10 SDK to build.
+- 2026-01-29: Renamed AGENT-sc.md to AGENTS-SC.md for consistent naming.
+- 2026-01-29: Fixed UTF8String JSON serialization and nullable MVID handling in McpRequestHandler; set bridge target to net10.0-windows.
+- 2026-01-29: Build script (build.ps1 -NoMsbuild) timed out on this machine; targeted builds succeeded for dnSpyEx.MCP (net48/net10.0-windows) and dnSpyEx.MCP.Bridge (net10.0-windows) with 0 errors.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
 - Launch dnSpyEx with the extension and verify NamedPipe server starts on AppLoaded.
 - Run the bridge and test MCP calls: listAssemblies / listNamespaces / listTypes / listMembers / decompile / getSelectedText.
 
+## Build & Usage Guide
+
+### Prerequisites
+- .NET SDK 10.x (required because the repo targets net10.0-windows).
+- Optional: Visual Studio Build Tools for full dnSpyEx build (COM refs). The build script prefers MSBuild.
+
+### Build
+Option A (recommended by repo, uses build script):
+```
+./build.ps1 -NoMsbuild
+```
+
+Option B (solution build):
+```
+dotnet build dnSpy.sln -c Release
+```
+
+Note: On this machine, build failed with NETSDK1045 because .NET SDK 9 cannot build net10.0-windows. Install .NET 10 SDK and retry.
+
+### Run dnSpyEx + MCP bridge
+1) Start dnSpyEx (net48 or net10.0-windows output):
+```
+dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
+```
+
+2) Start the MCP bridge:
+```
+dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
+```
+
+### Pipe configuration
+- Default pipe name: `dnSpyEx.MCP`
+- Override via env var: `DNSPYEX_MCP_PIPE`
+- Or bridge arg: `--pipe <name>`
+
+### Available MCP tools (MVP)
+- dnspy.listAssemblies
+- dnspy.listNamespaces
+- dnspy.listTypes
+- dnspy.listMembers
+- dnspy.decompile
+- dnspy.getSelectedText
+
+### Connect to an AI IDE (MCP-capable)
+General idea: configure the IDE to launch the bridge as a stdio MCP server. Example generic config:
+
+```json
+{
+  "mcpServers": {
+    "dnspyex": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "Tools/dnSpyEx.MCP.Bridge",
+        "-c",
+        "Release"
+      ],
+      "env": {
+        "DNSPYEX_MCP_PIPE": "dnSpyEx.MCP"
+      }
+    }
+  }
+}
+```
+
+Workflow:
+1) Launch dnSpyEx first (plugin starts pipe on AppLoaded).
+2) Start the IDE MCP server (bridge connects to the pipe).
+3) Use tools from the IDE's MCP tool list.
+
 ## Notes
 - User wants progress tracked in AGENTS.md on each update.
+
+## Rules
+- After each change, confirm build succeeds with no errors, then git commit and push to the repo.
+- After each code change, update project progress in AGENTS.md.
+- Whenever AGENTS.md is changed, mirror the corresponding Chinese updates into AGENTS-SC.md (rule block itself excluded).

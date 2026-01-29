@@ -25,7 +25,7 @@ namespace dnSpyEx.MCP.Ipc {
 				return MakeError(id, -32600, "Invalid Request");
 
 			try {
-				var result = Execute(method, request["params"] as JObject);
+				var result = Execute(method!, request["params"] as JObject);
 				return id is null ? null : MakeResult(id, result);
 			}
 			catch (RpcException ex) {
@@ -60,9 +60,9 @@ namespace dnSpyEx.MCP.Ipc {
 					continue;
 				var asm = document.AssemblyDef ?? module.Assembly;
 				var obj = new JObject {
-					["moduleName"] = module.Name,
-					["moduleMvid"] = module.Mvid.ToString("D"),
-					["assemblyName"] = asm?.Name,
+					["moduleName"] = Utf8ToString(module.Name),
+					["moduleMvid"] = FormatMvid(module.Mvid),
+					["assemblyName"] = asm is null ? string.Empty : Utf8ToString(asm.Name),
 					["assemblyFullName"] = asm?.FullName,
 					["filename"] = document.Filename,
 				};
@@ -74,7 +74,7 @@ namespace dnSpyEx.MCP.Ipc {
 		JToken ListNamespaces(JObject? parameters) {
 			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
 			var namespaces = module.GetTypes()
-				.Select(t => t.Namespace ?? string.Empty)
+				.Select(t => Utf8ToString(t.Namespace))
 				.Distinct(StringComparer.Ordinal)
 				.OrderBy(s => s, StringComparer.Ordinal)
 				.ToArray();
@@ -85,13 +85,13 @@ namespace dnSpyEx.MCP.Ipc {
 			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
 			var ns = RequireString(parameters, "namespace");
 			var types = module.GetTypes()
-				.Where(t => string.Equals(t.Namespace ?? string.Empty, ns, StringComparison.Ordinal))
+				.Where(t => string.Equals(Utf8ToString(t.Namespace), ns, StringComparison.Ordinal))
 				.Select(t => new JObject {
-					["name"] = t.Name,
+					["name"] = Utf8ToString(t.Name),
 					["fullName"] = t.FullName,
 					["isNested"] = t.IsNested,
 					["token"] = (uint)t.MDToken.Raw,
-					["moduleMvid"] = module.Mvid.ToString("D"),
+					["moduleMvid"] = FormatMvid(module.Mvid),
 				});
 			return new JArray(types);
 		}
@@ -135,7 +135,7 @@ namespace dnSpyEx.MCP.Ipc {
 			case "namespace":
 				var ns = RequireString(parameters, "namespace");
 				var types = module.GetTypes()
-					.Where(t => string.Equals(t.Namespace ?? string.Empty, ns, StringComparison.Ordinal))
+					.Where(t => string.Equals(Utf8ToString(t.Namespace), ns, StringComparison.Ordinal))
 					.ToArray();
 				decompiler.DecompileNamespace(ns, types, output, ctx);
 				break;
@@ -187,10 +187,10 @@ namespace dnSpyEx.MCP.Ipc {
 		static JObject MemberToJson(string kind, ModuleDef module, IMemberDef member) {
 			return new JObject {
 				["kind"] = kind,
-				["name"] = member.Name,
+				["name"] = Utf8ToString(member.Name),
 				["fullName"] = member.FullName,
 				["token"] = (uint)member.MDToken.Raw,
-				["moduleMvid"] = module.Mvid.ToString("D"),
+				["moduleMvid"] = FormatMvid(module.Mvid),
 			};
 		}
 
@@ -257,6 +257,12 @@ namespace dnSpyEx.MCP.Ipc {
 				return func();
 			return dispatcher.Invoke(func);
 		}
+
+		static string Utf8ToString(UTF8String? value) =>
+			value is null ? string.Empty : value.ToString();
+
+		static string FormatMvid(Guid? mvid) =>
+			mvid.HasValue ? mvid.Value.ToString("D") : string.Empty;
 
 		sealed class RpcException : Exception {
 			public int Code { get; }
