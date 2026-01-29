@@ -38,6 +38,7 @@
 - 2026-01-29: Build script (build.ps1 -NoMsbuild) timed out on this machine; targeted builds succeeded for dnSpyEx.MCP (net48/net10.0-windows) and dnSpyEx.MCP.Bridge (net10.0-windows) with 0 errors.
 - 2026-01-29: Changed extension assembly name to dnSpyEx.MCP.x; built dnSpyEx.MCP for net48 (1 warning) and net10.0-windows (0 warnings), no errors.
 - 2026-01-29: Added Output window logging for MCP server/requests; built dnSpyEx.MCP net48 (1 warning) and net10.0-windows (0 warnings), no errors.
+- 2026-01-29: Added net8.0-windows target for the plugin with external references via DnSpyExBin; bridge now targets net8.0 + net10.0-windows; builds succeeded for net8/net48/net10.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
@@ -62,6 +63,11 @@ dotnet build dnSpy.sln -c Release
 ```
 
 Note: On this machine, build failed with NETSDK1045 because .NET SDK 9 cannot build net10.0-windows. Install .NET 10 SDK and retry.
+
+If you are targeting a net8-based dnSpyEx distribution, build the plugin with:
+```
+dotnet build Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj -c Release -f net8.0-windows -p:DnSpyExBin="D:\逆向\工具-逆向\dnspyEx\bin"
+```
 
 ### Run dnSpyEx + MCP bridge
 1) Start dnSpyEx (net48 or net10.0-windows output):

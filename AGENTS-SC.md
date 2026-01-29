@@ -38,6 +38,7 @@
 - 2026-01-29：build.ps1 -NoMsbuild 在本机超时；已单独构建 dnSpyEx.MCP（net48/net10.0-windows）与 dnSpyEx.MCP.Bridge（net10.0-windows），均 0 错误。
 - 2026-01-29：扩展程序集名改为 dnSpyEx.MCP.x；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
 - 2026-01-29：新增 Output 窗口日志输出（MCP 服务/请求）；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
+- 2026-01-29：为插件新增 net8.0-windows 目标并通过 DnSpyExBin 引用外部依赖；bridge 目标为 net8.0 + net10.0-windows；net8/net48/net10 构建均成功。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。
@@ -62,6 +63,11 @@ dotnet build dnSpy.sln -c Release
 ```
 
 注意：本机上构建失败，原因是 .NET SDK 9 不能构建 net10.0-windows。安装 .NET 10 SDK 后重试。
+
+如果你的 dnSpyEx 分发包是 net8，插件可用以下命令构建：
+```
+dotnet build Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj -c Release -f net8.0-windows -p:DnSpyExBin="D:\逆向\工具-逆向\dnspyEx\bin"
+```
 
 ### 运行 dnSpyEx + MCP bridge
 1) 启动 dnSpyEx（net48 或 net10.0-windows 输出）：
