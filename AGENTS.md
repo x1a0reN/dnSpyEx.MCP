@@ -36,6 +36,7 @@
 - 2026-01-29: Renamed AGENT-sc.md to AGENTS-SC.md for consistent naming.
 - 2026-01-29: Fixed UTF8String JSON serialization and nullable MVID handling in McpRequestHandler; set bridge target to net10.0-windows.
 - 2026-01-29: Build script (build.ps1 -NoMsbuild) timed out on this machine; targeted builds succeeded for dnSpyEx.MCP (net48/net10.0-windows) and dnSpyEx.MCP.Bridge (net10.0-windows) with 0 errors.
+- 2026-01-29: Changed extension assembly name to dnSpyEx.MCP.x; built dnSpyEx.MCP for net48 (1 warning) and net10.0-windows (0 warnings), no errors.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.

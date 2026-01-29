@@ -3,7 +3,7 @@
   <Import Project="..\..\DnSpyCommon.props" />
 
   <PropertyGroup>
-    <AssemblyName>dnSpyEx.MCP</AssemblyName>
+    <AssemblyName>dnSpyEx.MCP.x</AssemblyName>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
