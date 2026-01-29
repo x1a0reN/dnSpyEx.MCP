@@ -39,6 +39,8 @@
 - 2026-01-29: Changed extension assembly name to dnSpyEx.MCP.x; built dnSpyEx.MCP for net48 (1 warning) and net10.0-windows (0 warnings), no errors.
 - 2026-01-29: Added Output window logging for MCP server/requests; built dnSpyEx.MCP net48 (1 warning) and net10.0-windows (0 warnings), no errors.
 - 2026-01-29: Added net8.0-windows target for the plugin with external references via DnSpyExBin; bridge now targets net8.0 + net10.0-windows; builds succeeded for net8/net48/net10.
+- 2026-01-29: Added output logging and a targeted suppression for BamlTabSaver NullReferenceException; added a null-guard in BamlTabSaver.
+- 2026-01-29: net8 build of dnSpy.BamlDecompiler cannot be produced from this repo due to API mismatch with the installed net8 binaries; plugin suppresses the crash instead.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.

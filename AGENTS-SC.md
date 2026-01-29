@@ -39,6 +39,8 @@
 - 2026-01-29：扩展程序集名改为 dnSpyEx.MCP.x；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
 - 2026-01-29：新增 Output 窗口日志输出（MCP 服务/请求）；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
 - 2026-01-29：为插件新增 net8.0-windows 目标并通过 DnSpyExBin 引用外部依赖；bridge 目标为 net8.0 + net10.0-windows；net8/net48/net10 构建均成功。
+- 2026-01-29：新增 Output 日志输出及对 BamlTabSaver NullReferenceException 的定向抑制；并在 BamlTabSaver 中加入空引用保护。
+- 2026-01-29：由于本仓库源码与已安装的 net8 二进制存在 API 不匹配，无法直接编译 net8 版 dnSpy.BamlDecompiler；已通过插件抑制崩溃作为替代方案。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

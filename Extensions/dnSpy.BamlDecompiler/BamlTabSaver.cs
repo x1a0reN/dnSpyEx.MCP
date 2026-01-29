@@ -50,6 +50,8 @@ namespace dnSpy.BamlDecompiler {
 		public string MenuHeader => bamlNode.DisassembleBaml ? dnSpy_BamlDecompiler_Resources.SaveBAML : dnSpy_BamlDecompiler_Resources.SaveXAML;
 
 		public static BamlTabSaver TryCreate(IDocumentTab tab, IMessageBoxService messageBoxService, IPickSaveFilename pickSaveFilename) {
+			if (tab is null)
+				return null;
 			if (tab.IsAsyncExecInProgress)
 				return null;
 			if (tab.UIContext is not IDocumentViewer uiContext)
