@@ -1,110 +1,84 @@
-# dnSpyEx
+# dnSpyEx.MCP
 
-dnSpyEx is an unofficial continuation of the [dnSpy](https://github.com/dnSpy/dnSpy) project which is a debugger and .NET assembly editor. You can use it to edit and debug assemblies even if you don't have any source code available. Main features:
+This repo is a fork of dnSpyEx with an MCP integration layer:
+- A dnSpyEx extension hosts a local IPC server (NamedPipe).
+- A separate stdio bridge exposes MCP JSON-RPC and forwards calls to the pipe.
 
-- Debug .NET and Unity assemblies
-- Edit .NET and Unity assemblies
-- Light and dark themes
+The goal is to let MCP clients talk to the dnSpyEx UI without requiring dnSpyEx to be launched by the MCP client.
 
-See below for more features
+## Architecture
 
-![debug-animated](images/debug-animated.gif)
+```
+MCP client (stdio JSON-RPC)
+            |
+            v
+dnSpyEx.MCP.Bridge (console)
+            |
+        NamedPipe
+            |
+            v
+dnSpyEx.MCP extension (inside dnSpyEx)
+```
 
-![edit-code-animated](images/edit-code-animated.gif)
+## Components (MCP-related)
 
-## Binaries
+- `Extensions/dnSpyEx.MCP/` - dnSpyEx extension that starts a NamedPipe JSON-RPC server.
+  - `TheExtension.cs` starts/stops the server on AppLoaded/AppExit.
+  - `Ipc/McpIpcServer.cs` line-delimited JSON-RPC over NamedPipe.
+  - `Ipc/McpRequestHandler.cs` MVP tool handlers (runs on UI dispatcher).
+- `Tools/dnSpyEx.MCP.Bridge/` - MCP stdio bridge console app.
+  - `Program.cs` entrypoint.
+  - `McpServer.cs` MCP JSON-RPC (initialize/tools/*).
+  - `ToolCatalog.cs` tool definitions and input schemas.
+  - `PipeClient.cs` NamedPipe client (line-delimited JSON).
 
-Latest stable release: https://github.com/dnSpyEx/dnSpy/releases
+## Build
 
-If you like living on the edge you can use the latest "beta" builds from:
-[![](https://github.com/dnSpyEx/dnSpy/workflows/GitHub%20CI/badge.svg)](https://github.com/dnSpyEx/dnSpy/actions)
-
-## Building
+This repo still builds dnSpyEx. The upstream build script is kept.
 
 ```PS
-git clone --recursive https://github.com/dnSpyEx/dnSpy.git
-cd dnSpy
-# or dotnet build
 ./build.ps1 -NoMsbuild
 ```
 
-To debug Unity games, you need this repo too: https://github.com/dnSpyEx/dnSpy-Unity-mono
+Or build the full solution:
 
-# Debugger
+```PS
+dotnet build dnSpy.sln -c Release
+```
 
-- Debug .NET Framework, .NET and Unity game assemblies, no source code required
-- Set breakpoints and step into any assembly
-- Locals, watch, autos windows
-- Variables windows support saving variables (eg. decrypted byte arrays) to disk or view them in the hex editor (memory window)
-- Object IDs
-- Multiple processes can be debugged at the same time
-- Break on module load
-- Tracepoints and conditional breakpoints
-- Export/import breakpoints and tracepoints
-- Optional Just My Code (JMC) stepping filters for system libraries
-- Call stack, threads, modules, processes windows
-- Break on thrown exceptions (1st chance)
-- Variables windows support evaluating C# / Visual Basic expressions
-- Dynamic modules can be debugged (but not dynamic methods due to CLR limitations)
-- Output window logs various debugging events, and it shows timestamps by default :)
-- Assemblies that decrypt themselves at runtime can be debugged, dnSpy will use the in-memory image. You can also force dnSpy to always use in-memory images instead of disk files.
-- Bypasses for common debugger detection techniques
-- Public API, you can write an extension or use the C# Interactive window to control the debugger
+## Run
 
-# Assembly Editor
+1) Launch dnSpyEx from the build output (net48 or net10.0-windows):
+```
+dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
+```
 
-- All metadata can be edited
-- Edit methods and classes in C# or Visual Basic with IntelliSense, no source code required
-- Add new methods, classes or members in C# or Visual Basic
-- IL editor for low-level IL method body editing
-- Low-level metadata tables can be edited. This uses the hex editor internally.
+2) Run the MCP bridge:
+```
+dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
+```
 
-# Hex Editor
+## MCP Tools (MVP)
 
-- Click on an address in the decompiled code to go to its IL code in the hex editor
-- The reverse of the above, press F12 in an IL body in the hex editor to go to the decompiled code or other high-level representation of the bits. It's great to find out which statement a patch modified.
-- Highlights .NET metadata structures and PE structures
-- Tooltips show more info about the selected .NET metadata / PE field
-- Go to position, file, RVA
-- Go to .NET metadata token, method body, #Blob / #Strings / #US heap offset or #GUID heap index
-- Follow references (Ctrl+F12)
+- `dnspy.listAssemblies`
+- `dnspy.listNamespaces`
+- `dnspy.listTypes`
+- `dnspy.listMembers`
+- `dnspy.decompile`
+- `dnspy.getSelectedText`
 
-# Other
+## Configuration
 
-- BAML decompiler and disassembler
-- Blue, light and dark themes (and a dark high contrast theme)
-- Bookmarks
-- C# Interactive window can be used to script dnSpy
-- Search assemblies for classes, methods, strings, etc
-- Analyze class and method usage, find callers, etc
-- Multiple tabs and tab groups
-- References are highlighted, use Tab / Shift+Tab to move to the next reference
-- Go to the entry point and module initializer commands
-- Go to metadata token or metadata row commands
-- Code tooltips (C# and Visual Basic)
-- Export to project
+Pipe name can be overridden with:
+- Env var: `DNSPYEX_MCP_PIPE`
+- Bridge arg: `--pipe <name>`
 
-# List of other open source libraries used by dnSpy
+Default pipe name: `dnSpyEx.MCP`
 
-- [ILSpy decompiler engine](https://github.com/icsharpcode/ILSpy) (C# and Visual Basic decompilers)
-- [Roslyn](https://github.com/dotnet/roslyn) (C# and Visual Basic compilers)
-- [dnlib](https://github.com/0xd4d/dnlib) (.NET metadata reader/writer which can also read obfuscated assemblies)
-- [VS MEF](https://github.com/microsoft/vs-mef) (Faster MEF equals faster startup)
-- [ClrMD](https://github.com/microsoft/clrmd) (Access to lower level debugging info not provided by the CorDebug API)
-- [Iced](https://github.com/icedland/iced) (x86/x64 disassembler)
-- [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) (JSON serializer & deserializer)
-- [NuGet.Configuration](https://github.com/NuGet/NuGet.Client) (NuGet configuration file reader)
+## Upstream
 
-# Translating dnSpy
+This repo is based on dnSpyEx: https://github.com/dnSpyEx/dnSpy
 
-[Click here](https://crowdin.com/project/dnspy) if you want to help with translating dnSpy to your native language.
+## License
 
-# Wiki
-
-See the [Wiki](https://github.com/dnSpyEx/dnSpy/wiki) for build instructions and other documentation.
-
-# License
-
-dnSpy is licensed under [GPLv3](dnSpy/dnSpy/LicenseInfo/GPLv3.txt).
-
-# [Credits](dnSpy/dnSpy/LicenseInfo/CREDITS.txt)
+dnSpy is licensed under GPLv3. See `dnSpy/dnSpy/LicenseInfo/GPLv3.txt`.

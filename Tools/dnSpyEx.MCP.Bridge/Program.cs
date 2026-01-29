@@ -1,0 +1,42 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace dnSpyEx.MCP.Bridge {
+	static class Program {
+		static async Task<int> Main(string[] args) {
+			try {
+				var pipeName = GetPipeName(args);
+				using var client = new PipeClient(pipeName);
+				using var cts = new CancellationTokenSource();
+				Console.CancelKeyPress += (_, e) => {
+					e.Cancel = true;
+					cts.Cancel();
+				};
+
+				await client.ConnectAsync(TimeSpan.FromSeconds(5), cts.Token).ConfigureAwait(false);
+
+				var server = new McpServer(client);
+				await server.RunAsync(cts.Token).ConfigureAwait(false);
+				return 0;
+			}
+			catch (OperationCanceledException) {
+				return 1;
+			}
+			catch (Exception ex) {
+				Console.Error.WriteLine(ex.Message);
+				return 2;
+			}
+		}
+
+		static string GetPipeName(string[] args) {
+			for (int i = 0; i < args.Length - 1; i++) {
+				if (string.Equals(args[i], "--pipe", StringComparison.OrdinalIgnoreCase))
+					return args[i + 1];
+			}
+
+			var env = Environment.GetEnvironmentVariable(McpPipeDefaults.PipeEnvVar);
+			return string.IsNullOrWhiteSpace(env) ? McpPipeDefaults.DefaultPipeName : env;
+		}
+	}
+}

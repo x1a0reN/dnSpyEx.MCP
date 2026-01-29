@@ -1,0 +1,163 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace dnSpyEx.MCP.Bridge {
+	sealed class McpServer {
+		readonly PipeClient pipe;
+		readonly ToolCatalog catalog;
+
+		public McpServer(PipeClient pipe) {
+			this.pipe = pipe ?? throw new ArgumentNullException(nameof(pipe));
+			catalog = new ToolCatalog();
+		}
+
+		public async Task RunAsync(CancellationToken token) {
+			while (!token.IsCancellationRequested) {
+				var line = await Console.In.ReadLineAsync().ConfigureAwait(false);
+				if (line is null)
+					break;
+				if (string.IsNullOrWhiteSpace(line))
+					continue;
+
+				JObject request;
+				try {
+					request = JObject.Parse(line);
+				}
+				catch (JsonException) {
+					await WriteResponseAsync(MakeError(null, -32700, "Parse error")).ConfigureAwait(false);
+					continue;
+				}
+
+				var response = await HandleRequestAsync(request, token).ConfigureAwait(false);
+				if (response is null)
+					continue;
+				await WriteResponseAsync(response).ConfigureAwait(false);
+			}
+		}
+
+		async Task<JObject?> HandleRequestAsync(JObject request, CancellationToken token) {
+			var id = request["id"];
+			var method = request["method"]?.Value<string>();
+			if (string.IsNullOrWhiteSpace(method))
+				return MakeError(id, -32600, "Invalid Request");
+
+			if (method == "initialize")
+				return Initialize(request, id);
+			if (method == "tools/list")
+				return ToolsList(id);
+			if (method == "tools/call")
+				return await ToolsCallAsync(request, id, token).ConfigureAwait(false);
+			if (method == "notifications/initialized")
+				return null;
+
+			return MakeError(id, -32601, $"Method not found: {method}");
+		}
+
+		JObject Initialize(JObject request, JToken? id) {
+			var protocolVersion = request["params"]?["protocolVersion"]?.Value<string>() ?? "2024-11-05";
+			var result = new JObject {
+				["protocolVersion"] = protocolVersion,
+				["capabilities"] = new JObject {
+					["tools"] = new JObject(),
+				},
+				["serverInfo"] = new JObject {
+					["name"] = "dnSpyEx.MCP.Bridge",
+					["version"] = "0.1.0",
+				},
+			};
+			return MakeResult(id, result);
+		}
+
+		JObject ToolsList(JToken? id) {
+			var tools = catalog.Tools.Values
+				.Select(tool => new JObject {
+					["name"] = tool.Name,
+					["description"] = tool.Description,
+					["inputSchema"] = tool.InputSchema,
+				});
+			return MakeResult(id, new JObject { ["tools"] = new JArray(tools) });
+		}
+
+		async Task<JObject> ToolsCallAsync(JObject request, JToken? id, CancellationToken token) {
+			var args = request["params"] as JObject;
+			var name = args?["name"]?.Value<string>();
+			var input = args?["arguments"] as JObject ?? new JObject();
+			if (string.IsNullOrWhiteSpace(name))
+				return MakeError(id, -32602, "Missing tool name");
+
+			if (!catalog.Tools.TryGetValue(name, out var tool))
+				return MakeError(id, -32601, $"Unknown tool: {name}");
+
+			var rpcReq = new JObject {
+				["jsonrpc"] = "2.0",
+				["id"] = Guid.NewGuid().ToString("N"),
+				["method"] = tool.Method,
+				["params"] = input,
+			};
+
+			JObject rpcResp;
+			try {
+				rpcResp = await pipe.CallAsync(rpcReq, token).ConfigureAwait(false);
+			}
+			catch (Exception ex) {
+				return ToolError(id, $"IPC error: {ex.Message}");
+			}
+
+			var error = rpcResp["error"] as JObject;
+			if (error is not null)
+				return ToolError(id, error["message"]?.Value<string>() ?? "IPC error");
+
+			var result = rpcResp["result"];
+			var text = result is null ? string.Empty : result.ToString(Formatting.Indented);
+			var content = new JArray {
+				new JObject {
+					["type"] = "text",
+					["text"] = text,
+				},
+			};
+			return MakeResult(id, new JObject {
+				["content"] = content,
+				["isError"] = false,
+			});
+		}
+
+		static JObject ToolError(JToken? id, string message) {
+			var content = new JArray {
+				new JObject {
+					["type"] = "text",
+					["text"] = message,
+				},
+			};
+			return MakeResult(id, new JObject {
+				["content"] = content,
+				["isError"] = true,
+			});
+		}
+
+		static Task WriteResponseAsync(JObject response) =>
+			Console.Out.WriteLineAsync(response.ToString(Formatting.None));
+
+		static JObject MakeResult(JToken? id, JToken result) {
+			return new JObject {
+				["jsonrpc"] = "2.0",
+				["id"] = id,
+				["result"] = result,
+			};
+		}
+
+		static JObject MakeError(JToken? id, int code, string message) {
+			return new JObject {
+				["jsonrpc"] = "2.0",
+				["id"] = id,
+				["error"] = new JObject {
+					["code"] = code,
+					["message"] = message,
+				},
+			};
+		}
+	}
+}
