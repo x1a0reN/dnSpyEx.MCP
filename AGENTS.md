@@ -47,6 +47,7 @@
 - 2026-01-29: Added explicit NamedPipe security (current user) and server-side creation error handling; removed mandatory label to avoid privilege errors and fixed net48 shutdown crash from TimeSpan.FromSeconds(long).
 - 2026-01-29: Server now accepts multiple concurrent NamedPipe clients (max instances) and handles connections in parallel to avoid timeouts when a stale client holds the only slot.
 - 2026-01-29: Added detailed pipe I/O logging (per-client request/EOF/errors) to diagnose early disconnects causing "Pipe closed" in the bridge.
+- 2026-01-29: Added opt-in bridge file logging (DNSPYEX_MCP_BRIDGE_LOG) to trace stdio and pipe operations without polluting MCP stdout.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.

@@ -28,10 +28,12 @@ namespace dnSpyEx.MCP.Bridge {
 					request = JObject.Parse(line);
 				}
 				catch (JsonException) {
+					BridgeLog.Warn("stdio parse error");
 					await WriteResponseAsync(MakeError(null, -32700, "Parse error")).ConfigureAwait(false);
 					continue;
 				}
 
+				BridgeLog.Info($"stdio request: {request["method"]?.Value<string>() ?? "(null)"}");
 				var response = await HandleRequestAsync(request, token).ConfigureAwait(false);
 				if (response is null)
 					continue;
@@ -92,6 +94,7 @@ namespace dnSpyEx.MCP.Bridge {
 			if (!catalog.Tools.TryGetValue(name, out var tool))
 				return MakeError(id, -32601, $"Unknown tool: {name}");
 
+			BridgeLog.Info($"tool call: {name}");
 			var rpcReq = new JObject {
 				["jsonrpc"] = "2.0",
 				["id"] = Guid.NewGuid().ToString("N"),

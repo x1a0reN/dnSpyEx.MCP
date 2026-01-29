@@ -24,6 +24,7 @@ namespace dnSpyEx.MCP.Bridge {
 		public async Task<JObject> CallAsync(JObject request, CancellationToken token) {
 			await gate.WaitAsync(token).ConfigureAwait(false);
 			try {
+				BridgeLog.Info($"pipe call start: {request["method"]?.Value<string>() ?? "(null)"}");
 				return await CallCoreAsync(request, token, allowRetry: true).ConfigureAwait(false);
 			}
 			finally {
@@ -35,15 +36,25 @@ namespace dnSpyEx.MCP.Bridge {
 			try {
 				await EnsureConnectedAsync(token).ConfigureAwait(false);
 				var lineRequest = request.ToString(Formatting.None);
+				BridgeLog.Info($"pipe write ({lineRequest.Length} bytes)");
 				await writer!.WriteLineAsync(lineRequest).ConfigureAwait(false);
+				BridgeLog.Info("pipe read await");
 				var line = await reader!.ReadLineAsync().ConfigureAwait(false);
-				if (line is null)
+				if (line is null) {
+					BridgeLog.Warn("pipe read EOF");
 					throw new IOException("Pipe closed");
+				}
+				BridgeLog.Info($"pipe read ({line.Length} bytes)");
 				return JObject.Parse(line);
 			}
 			catch (IOException) when (allowRetry) {
+				BridgeLog.Warn("pipe io error, retrying once");
 				ResetPipe();
 				return await CallCoreAsync(request, token, allowRetry: false).ConfigureAwait(false);
+			}
+			catch (Exception ex) {
+				BridgeLog.Error($"pipe call failed: {ex.GetType().Name}: {ex.Message}");
+				throw;
 			}
 		}
 
@@ -53,6 +64,7 @@ namespace dnSpyEx.MCP.Bridge {
 
 			ResetPipe();
 			pipe = new NamedPipeClientStream(".", pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+			BridgeLog.Info($"pipe connecting: {pipeName}");
 			using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
 			cts.CancelAfter(TimeSpan.FromSeconds(DefaultConnectTimeoutSeconds));
 			try {
@@ -69,6 +81,7 @@ namespace dnSpyEx.MCP.Bridge {
 			var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 			reader = new StreamReader(pipe, encoding, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
 			writer = new StreamWriter(pipe, encoding, bufferSize: 4096, leaveOpen: true) { AutoFlush = true };
+			BridgeLog.Info("pipe connected");
 		}
 
 		void ResetPipe() {

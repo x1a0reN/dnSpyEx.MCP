@@ -7,6 +7,7 @@ namespace dnSpyEx.MCP.Bridge {
 		static async Task<int> Main(string[] args) {
 			try {
 				var pipeName = GetPipeName(args);
+				BridgeLog.Info($"bridge start (pipe={pipeName})");
 				using var client = new PipeClient(pipeName);
 				using var cts = new CancellationTokenSource();
 				Console.CancelKeyPress += (_, e) => {
@@ -19,9 +20,11 @@ namespace dnSpyEx.MCP.Bridge {
 				return 0;
 			}
 			catch (OperationCanceledException) {
+				BridgeLog.Warn("bridge canceled");
 				return 1;
 			}
 			catch (Exception ex) {
+				BridgeLog.Error($"bridge fatal: {ex}");
 				Console.Error.WriteLine(ex.Message);
 				return 2;
 			}
