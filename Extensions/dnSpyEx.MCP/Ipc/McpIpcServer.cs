@@ -210,11 +210,12 @@ namespace dnSpyEx.MCP.Ipc {
 		static PipeSecurity BuildPipeSecurity() {
 			var security = new PipeSecurity();
 			var user = WindowsIdentity.GetCurrent().User;
+			const PipeAccessRights ServerRights = PipeAccessRights.ReadWrite | PipeAccessRights.CreateNewInstance;
 			if (user is not null)
-				security.AddAccessRule(new PipeAccessRule(user, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+				security.AddAccessRule(new PipeAccessRule(user, ServerRights, AccessControlType.Allow));
 
 			var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
-			security.AddAccessRule(new PipeAccessRule(admins, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+			security.AddAccessRule(new PipeAccessRule(admins, ServerRights, AccessControlType.Allow));
 
 			return security;
 		}

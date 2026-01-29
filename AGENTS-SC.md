@@ -50,6 +50,7 @@
 - 2026-01-29：新增 bridge 端可选文件日志（DNSPYEX_MCP_BRIDGE_LOG），用于追踪 stdio 与 pipe 流程且不污染 MCP stdout。
 - 2026-01-29：新增每个客户端处理器的生命周期日志与异常捕获，便于定位连接后立即断开的原因。
 - 2026-01-29：将 JToken.ToString(Formatting) 替换为 JsonConvert.SerializeObject，避免 dnSpyEx 运行时 Newtonsoft.Json 版本不匹配导致的崩溃。
+- 2026-01-29：管道安全权限增加 CreateNewInstance，避免创建额外服务器实例时报 “Access denied” 日志刷屏。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

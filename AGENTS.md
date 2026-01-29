@@ -50,6 +50,7 @@
 - 2026-01-29: Added opt-in bridge file logging (DNSPYEX_MCP_BRIDGE_LOG) to trace stdio and pipe operations without polluting MCP stdout.
 - 2026-01-29: Added handler lifecycle logging and exception capture around per-client pipe tasks to surface immediate disconnect causes.
 - 2026-01-29: Replaced JToken.ToString(Formatting) usage with JsonConvert.SerializeObject to avoid Newtonsoft.Json version mismatch crashes in dnSpyEx runtime.
+- 2026-01-29: Added PipeAccessRights.CreateNewInstance to pipe security so additional server instances can be created without access denied spam.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
