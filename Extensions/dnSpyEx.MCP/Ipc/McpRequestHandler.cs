@@ -12,10 +12,12 @@ namespace dnSpyEx.MCP.Ipc {
 	sealed class McpRequestHandler {
 		readonly IDocumentTabService documentTabService;
 		readonly IDecompilerService decompilerService;
+		readonly Logging.IMcpLogger logger;
 
-		public McpRequestHandler(IDocumentTabService documentTabService, IDecompilerService decompilerService) {
+		public McpRequestHandler(IDocumentTabService documentTabService, IDecompilerService decompilerService, Logging.IMcpLogger logger) {
 			this.documentTabService = documentTabService ?? throw new ArgumentNullException(nameof(documentTabService));
 			this.decompilerService = decompilerService ?? throw new ArgumentNullException(nameof(decompilerService));
+			this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		}
 
 		public JObject? Handle(JObject request) {
@@ -25,13 +27,16 @@ namespace dnSpyEx.MCP.Ipc {
 				return MakeError(id, -32600, "Invalid Request");
 
 			try {
+				logger.Info($"MCP request: {method}");
 				var result = Execute(method!, request["params"] as JObject);
 				return id is null ? null : MakeResult(id, result);
 			}
 			catch (RpcException ex) {
+				logger.Warn($"MCP error: {ex.Message}");
 				return MakeError(id, ex.Code, ex.Message);
 			}
 			catch (Exception ex) {
+				logger.Error($"MCP exception: {ex.Message}");
 				return MakeError(id, -32603, ex.Message);
 			}
 		}

@@ -37,6 +37,7 @@
 - 2026-01-29：修复 McpRequestHandler 中 UTF8String 序列化与可空 MVID 处理；将 bridge 目标框架改为 net10.0-windows。
 - 2026-01-29：build.ps1 -NoMsbuild 在本机超时；已单独构建 dnSpyEx.MCP（net48/net10.0-windows）与 dnSpyEx.MCP.Bridge（net10.0-windows），均 0 错误。
 - 2026-01-29：扩展程序集名改为 dnSpyEx.MCP.x；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
+- 2026-01-29：新增 Output 窗口日志输出（MCP 服务/请求）；构建 dnSpyEx.MCP：net48（1 个警告）、net10.0-windows（0 警告），均无错误。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。

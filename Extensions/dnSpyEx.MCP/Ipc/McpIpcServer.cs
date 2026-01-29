@@ -14,12 +14,14 @@ namespace dnSpyEx.MCP.Ipc {
 		const string PipeEnvVar = "DNSPYEX_MCP_PIPE";
 
 		readonly McpRequestHandler handler;
+		readonly Logging.IMcpLogger logger;
 		readonly string pipeName;
 		CancellationTokenSource? cts;
 		Task? serverTask;
 
-		public McpIpcServer(McpRequestHandler handler, string? pipeName = null) {
+		public McpIpcServer(McpRequestHandler handler, Logging.IMcpLogger logger, string? pipeName = null) {
 			this.handler = handler ?? throw new ArgumentNullException(nameof(handler));
+			this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
 			var envPipe = Environment.GetEnvironmentVariable(PipeEnvVar);
 			var resolved = string.IsNullOrWhiteSpace(pipeName) ? envPipe : pipeName;
 			this.pipeName = string.IsNullOrWhiteSpace(resolved) ? DefaultPipeName : resolved!;
@@ -30,6 +32,7 @@ namespace dnSpyEx.MCP.Ipc {
 				return;
 			cts = new CancellationTokenSource();
 			serverTask = Task.Run(() => RunAsync(cts.Token));
+			logger.Info($"MCP pipe server started: {pipeName}");
 		}
 
 		public void Dispose() {
@@ -44,6 +47,7 @@ namespace dnSpyEx.MCP.Ipc {
 			cts.Dispose();
 			cts = null;
 			serverTask = null;
+			logger.Info("MCP pipe server stopped");
 		}
 
 		async Task RunAsync(CancellationToken token) {
@@ -62,12 +66,15 @@ namespace dnSpyEx.MCP.Ipc {
 					return;
 				}
 				catch (Exception ex) {
+					logger.Error($"MCP pipe wait failed: {ex.Message}");
 					Debug.WriteLine(ex);
 					await Task.Delay(250, token).ConfigureAwait(false);
 					continue;
 				}
 
+				logger.Info("MCP pipe client connected");
 				await HandleClientAsync(pipe, token).ConfigureAwait(false);
+				logger.Info("MCP pipe client disconnected");
 			}
 		}
 
@@ -95,6 +102,7 @@ namespace dnSpyEx.MCP.Ipc {
 					request = JObject.Parse(line);
 				}
 				catch (JsonException) {
+					logger.Warn("MCP pipe: JSON parse error");
 					await WriteErrorAsync(writer, null, -32700, "Parse error").ConfigureAwait(false);
 					continue;
 				}
