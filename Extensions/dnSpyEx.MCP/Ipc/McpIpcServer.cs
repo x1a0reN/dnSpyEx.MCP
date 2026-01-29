@@ -53,6 +53,7 @@ namespace dnSpyEx.MCP.Ipc {
 		}
 
 		async Task RunAsync(CancellationToken token) {
+			int clientId = 0;
 			while (!token.IsCancellationRequested) {
 				NamedPipeServerStream pipe;
 				try {
@@ -65,24 +66,24 @@ namespace dnSpyEx.MCP.Ipc {
 					continue;
 				}
 
-				using (pipe) {
-					try {
-						await pipe.WaitForConnectionAsync(token).ConfigureAwait(false);
-					}
-					catch (OperationCanceledException) {
-						return;
-					}
-					catch (Exception ex) {
-						logger.Error($"MCP pipe wait failed: {ex.Message}");
-						Debug.WriteLine(ex);
-						await Task.Delay(250, token).ConfigureAwait(false);
-						continue;
-					}
-
-					logger.Info("MCP pipe client connected");
-					await HandleClientAsync(pipe, token).ConfigureAwait(false);
-					logger.Info("MCP pipe client disconnected");
+				try {
+					await pipe.WaitForConnectionAsync(token).ConfigureAwait(false);
 				}
+				catch (OperationCanceledException) {
+					pipe.Dispose();
+					return;
+				}
+				catch (Exception ex) {
+					pipe.Dispose();
+					logger.Error($"MCP pipe wait failed: {ex.Message}");
+					Debug.WriteLine(ex);
+					await Task.Delay(250, token).ConfigureAwait(false);
+					continue;
+				}
+
+				var id = Interlocked.Increment(ref clientId);
+				logger.Info($"MCP pipe client connected: {id}");
+				_ = HandleClientLifetimeAsync(pipe, token, id);
 			}
 		}
 
@@ -155,7 +156,7 @@ namespace dnSpyEx.MCP.Ipc {
 				return new NamedPipeServerStream(
 					pipeName,
 					PipeDirection.InOut,
-					1,
+					NamedPipeServerStream.MaxAllowedServerInstances,
 					PipeTransmissionMode.Byte,
 					PipeOptions.Asynchronous,
 					4096,
@@ -165,7 +166,7 @@ namespace dnSpyEx.MCP.Ipc {
 				return NamedPipeServerStreamAcl.Create(
 					pipeName,
 					PipeDirection.InOut,
-					1,
+					NamedPipeServerStream.MaxAllowedServerInstances,
 					PipeTransmissionMode.Byte,
 					PipeOptions.Asynchronous,
 					4096,
@@ -181,10 +182,17 @@ namespace dnSpyEx.MCP.Ipc {
 				return new NamedPipeServerStream(
 					pipeName,
 					PipeDirection.InOut,
-					1,
+					NamedPipeServerStream.MaxAllowedServerInstances,
 					PipeTransmissionMode.Byte,
 					PipeOptions.Asynchronous);
 			}
+		}
+
+		async Task HandleClientLifetimeAsync(NamedPipeServerStream pipe, CancellationToken token, int clientId) {
+			using (pipe) {
+				await HandleClientAsync(pipe, token).ConfigureAwait(false);
+			}
+			logger.Info($"MCP pipe client disconnected: {clientId}");
 		}
 
 		static PipeSecurity BuildPipeSecurity() {

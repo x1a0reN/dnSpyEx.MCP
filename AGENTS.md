@@ -45,6 +45,7 @@
 - 2026-01-29: Added pipe read/write error logging on the plugin side and a one-time reconnect retry in the bridge to mitigate transient broken-pipe errors.
 - 2026-01-29: Plugin build now auto-copies dnSpyEx.MCP.x.dll into D:\逆向\工具-逆向\dnspyEx\bin\Extensions by default (disable with DisableDnSpyExInstallCopy=true or override DnSpyExInstallDir).
 - 2026-01-29: Added explicit NamedPipe security (current user) and server-side creation error handling; removed mandatory label to avoid privilege errors and fixed net48 shutdown crash from TimeSpan.FromSeconds(long).
+- 2026-01-29: Server now accepts multiple concurrent NamedPipe clients (max instances) and handles connections in parallel to avoid timeouts when a stale client holds the only slot.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
