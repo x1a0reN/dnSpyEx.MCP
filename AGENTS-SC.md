@@ -52,6 +52,7 @@
 - 2026-01-29：将 JToken.ToString(Formatting) 替换为 JsonConvert.SerializeObject，避免 dnSpyEx 运行时 Newtonsoft.Json 版本不匹配导致的崩溃。
 - 2026-01-29：管道安全权限增加 CreateNewInstance，避免创建额外服务器实例时报 “Access denied” 日志刷屏。
 - 2026-01-29：允许 listTypes/namespace decompile 的 namespace 为空字符串，并新增 dnspy.help 工具在 tools/list 中提供使用说明。
+- 2026-01-29：新增 dnspy.exampleFlow 工具，提供各工具的完整用法示例，并在工具描述中提示优先阅读。
 
 ## 下一步
 - 编译解决方案，确认两个新项目可正常构建。
@@ -99,6 +100,8 @@ dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
 - bridge 参数：`--pipe <name>`
 
 ### 可用 MCP 工具（MVP）
+- dnspy.help
+- dnspy.exampleFlow
 - dnspy.listAssemblies
 - dnspy.listNamespaces
 - dnspy.listTypes

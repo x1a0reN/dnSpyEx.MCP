@@ -52,6 +52,7 @@
 - 2026-01-29: Replaced JToken.ToString(Formatting) usage with JsonConvert.SerializeObject to avoid Newtonsoft.Json version mismatch crashes in dnSpyEx runtime.
 - 2026-01-29: Added PipeAccessRights.CreateNewInstance to pipe security so additional server instances can be created without access denied spam.
 - 2026-01-29: Allowed empty namespace parameter for listTypes/decompile namespace, and added a dnspy.help tool with usage tips exposed via tools/list.
+- 2026-01-29: Added dnspy.exampleFlow tool with full usage examples and updated tool descriptions to prompt calling it first.
 
 ## Next Steps
 - Build the solution and confirm both projects compile.
@@ -99,6 +100,8 @@ dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
 - Or bridge arg: `--pipe <name>`
 
 ### Available MCP tools (MVP)
+- dnspy.help
+- dnspy.exampleFlow
 - dnspy.listAssemblies
 - dnspy.listNamespaces
 - dnspy.listTypes
@@ -142,3 +145,4 @@ Workflow:
 - After each change, confirm build succeeds with no errors, then git commit and push to the repo.
 - After each code change, update project progress in AGENTS.md.
 - Whenever AGENTS.md is changed, mirror the corresponding Chinese updates into AGENTS-SC.md (rule block itself excluded).
+- Each time a new MCP tool is added, update dnspy.exampleFlow with that tool's usage and example.

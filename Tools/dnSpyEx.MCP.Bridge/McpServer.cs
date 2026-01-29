@@ -106,6 +106,17 @@ namespace dnSpyEx.MCP.Bridge {
 					["isError"] = false,
 				});
 			}
+			if (tool.Method == "__local.exampleFlow") {
+				return MakeResult(id, new JObject {
+					["content"] = new JArray {
+						new JObject {
+							["type"] = "text",
+							["text"] = ExampleFlowText,
+						},
+					},
+					["isError"] = false,
+				});
+			}
 
 			var rpcReq = new JObject {
 				["jsonrpc"] = "2.0",
@@ -189,5 +200,65 @@ Notes:
 - namespace parameter can be empty string for global namespace.
 - token/typeToken are uint metadata tokens from listTypes/listMembers.
 - decompile kind: assembly|module|namespace|type|method|field|property|event.";
+
+		const string ExampleFlowText =
+@"dnSpyEx MCP example flow (detailed)
+
+Always start by reading this once:
+- dnspy.exampleFlow
+
+1) List modules
+Tool: dnspy.listAssemblies
+Arguments: {}
+Returns: array of modules with moduleMvid, moduleName, assemblyName, filename.
+
+2) List namespaces in a module
+Tool: dnspy.listNamespaces
+Arguments:
+{ ""moduleMvid"": ""<GUID>"" }
+Note: global namespace is returned as empty string """".
+
+3) List types in a namespace (including global)
+Tool: dnspy.listTypes
+Arguments:
+{ ""moduleMvid"": ""<GUID>"", ""namespace"": ""My.Namespace"" }
+Global namespace example:
+{ ""moduleMvid"": ""<GUID>"", ""namespace"": """" }
+Returns: array of types with token and fullName.
+
+4) List members in a type
+Tool: dnspy.listMembers
+Arguments:
+{ ""moduleMvid"": ""<GUID>"", ""typeToken"": 33554433 }
+Returns: methods/fields/properties/events with token.
+
+5) Decompile
+Tool: dnspy.decompile
+Kinds and examples:
+- assembly:
+  { ""kind"": ""assembly"", ""moduleMvid"": ""<GUID>"" }
+- module:
+  { ""kind"": ""module"", ""moduleMvid"": ""<GUID>"" }
+- namespace:
+  { ""kind"": ""namespace"", ""moduleMvid"": ""<GUID>"", ""namespace"": ""My.Namespace"" }
+- type:
+  { ""kind"": ""type"", ""moduleMvid"": ""<GUID>"", ""token"": 33554433 }
+- method:
+  { ""kind"": ""method"", ""moduleMvid"": ""<GUID>"", ""token"": 100663297 }
+- field:
+  { ""kind"": ""field"", ""moduleMvid"": ""<GUID>"", ""token"": 67108865 }
+- property:
+  { ""kind"": ""property"", ""moduleMvid"": ""<GUID>"", ""token"": 385875968 }
+- event:
+  { ""kind"": ""event"", ""moduleMvid"": ""<GUID>"", ""token"": 536870912 }
+
+6) Get selected text
+Tool: dnspy.getSelectedText
+Arguments: {}
+Returns: hasViewer, isEmpty, caretPosition, text.
+
+Tips:
+- Always call dnspy.exampleFlow first for full examples.
+- Use moduleMvid + token/typeToken from previous list calls.";
 	}
 }

@@ -9,7 +9,7 @@ namespace dnSpyEx.MCP.Bridge {
 			var list = new List<ToolDef> {
 				new ToolDef(
 					"dnspy.help",
-					"Describe dnSpyEx MCP tools, required parameters, and common usage tips.",
+					"Describe dnSpyEx MCP tools and tips (see dnspy.exampleFlow for detailed usage).",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject(),
@@ -17,8 +17,17 @@ namespace dnSpyEx.MCP.Bridge {
 					},
 					"__local.help"),
 				new ToolDef(
+					"dnspy.exampleFlow",
+					"Detailed usage examples for all dnSpyEx MCP tools (recommended first read).",
+					new JObject {
+						["type"] = "object",
+						["properties"] = new JObject(),
+						["additionalProperties"] = false,
+					},
+					"__local.exampleFlow"),
+				new ToolDef(
 					"dnspy.listAssemblies",
-					"List loaded assemblies and modules.",
+					"List loaded assemblies and modules. See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject(),
@@ -27,7 +36,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"listAssemblies"),
 				new ToolDef(
 					"dnspy.listNamespaces",
-					"List namespaces in a module.",
+					"List namespaces in a module. See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject {
@@ -42,7 +51,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"listNamespaces"),
 				new ToolDef(
 					"dnspy.listTypes",
-					"List types in a module namespace (use empty string for global namespace).",
+					"List types in a module namespace (use empty string for global namespace). See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject {
@@ -61,7 +70,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"listTypes"),
 				new ToolDef(
 					"dnspy.listMembers",
-					"List members in a type.",
+					"List members in a type. See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject {
@@ -80,7 +89,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"listMembers"),
 				new ToolDef(
 					"dnspy.decompile",
-					"Decompile a module, assembly, namespace, type, or member.",
+					"Decompile a module, assembly, namespace, type, or member. See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject {
@@ -107,7 +116,7 @@ namespace dnSpyEx.MCP.Bridge {
 					"decompile"),
 				new ToolDef(
 					"dnspy.getSelectedText",
-					"Get the current selection text from the active document tab.",
+					"Get the current selection text from the active document tab. See dnspy.exampleFlow for examples.",
 					new JObject {
 						["type"] = "object",
 						["properties"] = new JObject(),
