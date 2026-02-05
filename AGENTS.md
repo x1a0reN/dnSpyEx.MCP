@@ -1,30 +1,23 @@
 # AGENTS
 
 ## Background
-- Goal: build a dnSpyEx MCP plugin with a local IPC server and a stdio bridge so MCP clients can talk to dnSpyEx UI.
+- Goal: build a dnSpyEx MCP plugin that exposes an HTTP JSON-RPC server so AI clients can talk to dnSpyEx UI directly.
 - Repo: D:\Projects\dnSpyEx.MCP
 
 ## Target Architecture
-- dnSpyEx plugin hosts a local IPC server (NamedPipe preferred; HTTP optional).
-- Separate MCP stdio bridge (console app) speaks MCP JSON-RPC over stdio and forwards to the IPC server.
+- dnSpyEx plugin hosts a local HTTP JSON-RPC server.
 - Expose MVP tools: assembly / namespace / type / member / decompile / selected code.
 
 ## Project Structure (MCP-related)
 - Extensions\dnSpyEx.MCP\dnSpyEx.MCP.csproj: Extension project; references dnSpy contracts and Newtonsoft.Json.
 - Extensions\dnSpyEx.MCP\TheExtension.cs: Extension entrypoint; starts server on AppLoaded and stops on AppExit.
-- Extensions\dnSpyEx.MCP\McpHost.cs: MEF-exported host; wires dnSpy services into the IPC server.
-- Extensions\dnSpyEx.MCP\Ipc\McpIpcServer.cs: NamedPipe JSON-RPC server (line-delimited); supports DNSPYEX_MCP_PIPE override.
-- Extensions\dnSpyEx.MCP\Ipc\McpRequestHandler.cs: RPC dispatch + MVP tools; runs on UI dispatcher.
-- Tools\dnSpyEx.MCP.Bridge\dnSpyEx.MCP.Bridge.csproj: MCP stdio bridge console app.
-- Tools\dnSpyEx.MCP.Bridge\Program.cs: Bridge entrypoint; runs MCP loop (pipe connects on demand).
-- Tools\dnSpyEx.MCP.Bridge\McpServer.cs: MCP JSON-RPC (initialize/tools/*); forwards tool calls to pipe.
-- Tools\dnSpyEx.MCP.Bridge\ToolCatalog.cs: Tool definitions and input schemas mapped to RPC methods.
-- Tools\dnSpyEx.MCP.Bridge\PipeClient.cs: NamedPipe client (line-delimited JSON), lazy connect with timeout.
-- Tools\dnSpyEx.MCP.Bridge\McpPipeDefaults.cs: Pipe name constants and env var name.
-- dnSpy.sln: Solution updated to include dnSpyEx.MCP and dnSpyEx.MCP.Bridge.
+- Extensions\dnSpyEx.MCP\McpHost.cs: MEF-exported host; wires dnSpy services into the HTTP server.
+- Extensions\dnSpyEx.MCP\Http\McpHttpServer.cs: HTTP JSON-RPC server (POST /rpc).
+- Extensions\dnSpyEx.MCP\Ipc\McpRequestHandler.cs: RPC dispatch + tool handlers; runs on UI dispatcher.
+- dnSpy.sln: Solution updated to include dnSpyEx.MCP.
 
 ## Decisions
-- Use hybrid model: plugin exposes NamedPipe (or HTTP) and bridge handles stdio MCP.
+- Use direct HTTP JSON-RPC between the AI client and the dnSpyEx plugin (no bridge).
 - Focus on MVP toolset first, then expand.
 
 ## Current Progress
@@ -56,11 +49,16 @@
 - 2026-01-29: Expanded dnspy.exampleFlow to include dnspy.help and documentation tool guidance.
 - 2026-01-29: Added dnspy.exampleFlow coverage for all tools, new method/field/type info tools, and dnspy.search with full dnSpyEx search settings.
 - 2026-01-29: Reworked dnspy.search to use a custom dnlib-based search (metadata + IL/body text) instead of internal dnSpy search APIs; updated module keying and UTF8String handling for search results.
+- 2026-02-05: Replaced NamedPipe server with HTTP JSON-RPC (HttpListener) and added /health endpoint.
+- 2026-02-05: Removed dnSpyEx.MCP.Bridge project from the repo and solution.
+- 2026-02-05: Added new RPC tools for type/method inspection, references, call analysis, and search utilities.
+- 2026-02-05: Added scripts/dev-build-commit.ps1 for build + auto-copy + commit/push.
+- 2026-02-05: Fixed UTF8String JSON output conversions and FnPtrSig MethodSig handling in McpRequestHandler; build passes.
 
 ## Next Steps
-- Build the solution and confirm both projects compile.
-- Launch dnSpyEx with the extension and verify NamedPipe server starts on AppLoaded.
-- Run the bridge and test MCP calls: listAssemblies / listNamespaces / listTypes / listMembers / decompile / getSelectedText.
+- Build the extension and confirm it compiles.
+- Launch dnSpyEx with the extension and verify HTTP server starts on AppLoaded.
+- Test HTTP JSON-RPC calls: listAssemblies / listNamespaces / listTypes / listMembers / decompile / getSelectedText.
 
 ## Build & Usage Guide
 
@@ -81,68 +79,71 @@ dotnet build dnSpy.sln -c Release
 
 Note: On this machine, build failed with NETSDK1045 because .NET SDK 9 cannot build net10.0-windows. Install .NET 10 SDK and retry.
 
-### Run dnSpyEx + MCP bridge
+### Run dnSpyEx + HTTP JSON-RPC
 1) Start dnSpyEx (net10.0-windows output):
 ```
 dnSpy\dnSpy\bin\Release\net10.0-windows\dnSpy.exe
 ```
 
-2) Start the MCP bridge:
+2) Send HTTP JSON-RPC to:
 ```
-dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
+http://127.0.0.1:13337/rpc
 ```
 
-### Pipe configuration
-- Default pipe name: `dnSpyEx.MCP`
-- Override via env var: `DNSPYEX_MCP_PIPE`
-- Or bridge arg: `--pipe <name>`
-
-### Available MCP tools (MVP)
-- dnspy.help
-- dnspy.exampleFlow
-- dnspy.listAssemblies
-- dnspy.listNamespaces
-- dnspy.listTypes
-- dnspy.listMembers
-- dnspy.decompile
-- dnspy.decompileMethod
-- dnspy.decompileField
-- dnspy.decompileProperty
-- dnspy.decompileEvent
-- dnspy.getFieldInfo
-- dnspy.getEnumInfo
-- dnspy.getStructInfo
-- dnspy.getInterfaceInfo
-- dnspy.search
-- dnspy.getSelectedText
-
-### Connect to an AI IDE (MCP-capable)
-General idea: configure the IDE to launch the bridge as a stdio MCP server. Example generic config:
-
+Example:
 ```json
 {
-  "mcpServers": {
-    "dnspyex": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "Tools/dnSpyEx.MCP.Bridge",
-        "-c",
-        "Release"
-      ],
-      "env": {
-        "DNSPYEX_MCP_PIPE": "dnSpyEx.MCP"
-      }
-    }
-  }
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "listAssemblies",
+  "params": {}
 }
 ```
 
-Workflow:
-1) Launch dnSpyEx first (plugin starts pipe on AppLoaded).
-2) Start the IDE MCP server (bridge connects to the pipe).
-3) Use tools from the IDE's MCP tool list.
+### HTTP configuration
+- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:13337/`)
+- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `13337`)
+
+### Available MCP tools
+- listAssemblies
+- getAssemblyInfo
+- listNamespaces
+- listTypes
+- listMembers
+- getTypeInfo
+- getTypeFields
+- getTypeProperty
+- getMethodSignature
+- decompileMethod
+- decompileField
+- decompileProperty
+- decompileEvent
+- decompileType
+- getFieldInfo
+- getEnumInfo
+- getStructInfo
+- getInterfaceInfo
+- getTypeDependencies
+- getInheritanceTree
+- findPathToType
+- findReferences
+- getCallers
+- getCallees
+- search
+- searchTypes
+- searchMembers
+- searchStrings
+- getSelectedText
+- getSelectedMember
+- openInDnSpy
+- exampleFlow
+
+### Connect to an AI IDE
+This server is HTTP JSON-RPC (not stdio MCP). Configure your client to POST to:
+```
+http://127.0.0.1:13337/rpc
+```
+Use `DNSPYEX_MCP_HTTP_PREFIX` or `DNSPYEX_MCP_HTTP_PORT` to override.
 
 ## Notes
 - User wants progress tracked in AGENTS.md on each update.

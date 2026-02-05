@@ -1,20 +1,14 @@
 # dnSpyEx.MCP
 
 This repo is a fork of dnSpyEx with an MCP integration layer:
-- A dnSpyEx extension hosts a local IPC server (NamedPipe).
-- A separate stdio bridge exposes MCP JSON-RPC and forwards calls to the pipe.
+- The dnSpyEx extension hosts a local HTTP JSON-RPC server.
 
-The goal is to let MCP clients talk to the dnSpyEx UI without requiring dnSpyEx to be launched by the MCP client.
+The goal is to let AI tools talk to the dnSpyEx UI without requiring a separate bridge process.
 
 ## Architecture
 
 ```
-MCP client (stdio JSON-RPC)
-            |
-            v
-dnSpyEx.MCP.Bridge (console)
-            |
-        NamedPipe
+AI client (HTTP JSON-RPC)
             |
             v
 dnSpyEx.MCP extension (inside dnSpyEx)
@@ -22,15 +16,10 @@ dnSpyEx.MCP extension (inside dnSpyEx)
 
 ## Components (MCP-related)
 
-- `Extensions/dnSpyEx.MCP/` - dnSpyEx extension that starts a NamedPipe JSON-RPC server.
+- `Extensions/dnSpyEx.MCP/` - dnSpyEx extension that starts an HTTP JSON-RPC server.
   - `TheExtension.cs` starts/stops the server on AppLoaded/AppExit.
-  - `Ipc/McpIpcServer.cs` line-delimited JSON-RPC over NamedPipe.
+  - `Http/McpHttpServer.cs` HTTP JSON-RPC server (POST /rpc).
   - `Ipc/McpRequestHandler.cs` MVP tool handlers (runs on UI dispatcher).
-- `Tools/dnSpyEx.MCP.Bridge/` - MCP stdio bridge console app.
-  - `Program.cs` entrypoint.
-  - `McpServer.cs` MCP JSON-RPC (initialize/tools/*).
-  - `ToolCatalog.cs` tool definitions and input schemas.
-  - `PipeClient.cs` NamedPipe client (line-delimited JSON).
 
 ## Build
 
@@ -53,27 +42,49 @@ dotnet build dnSpy.sln -c Release
 dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
 ```
 
-2) Run the MCP bridge:
+2) Send HTTP JSON-RPC to:
 ```
-dotnet run --project Tools/dnSpyEx.MCP.Bridge -c Release
+http://127.0.0.1:13337/rpc
 ```
 
-## MCP Tools (MVP)
+Example:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "listAssemblies",
+  "params": {}
+}
+```
 
-- `dnspy.listAssemblies`
-- `dnspy.listNamespaces`
-- `dnspy.listTypes`
-- `dnspy.listMembers`
-- `dnspy.decompile`
-- `dnspy.getSelectedText`
+## MCP Tools
+
+- `listAssemblies`
+- `getAssemblyInfo`
+- `listNamespaces`
+- `listTypes`
+- `listMembers`
+- `getTypeInfo`
+- `getTypeFields`
+- `getTypeProperty`
+- `getMethodSignature`
+- `decompileMethod` / `decompileField` / `decompileProperty` / `decompileEvent` / `decompileType`
+- `searchTypes` / `searchMembers` / `searchStrings` / `search`
+- `findReferences`
+- `getCallers` / `getCallees`
+- `getTypeDependencies`
+- `getInheritanceTree`
+- `findPathToType`
+- `getSelectedText`
+- `getSelectedMember`
+- `openInDnSpy`
+- `exampleFlow`
 
 ## Configuration
 
-Pipe name can be overridden with:
-- Env var: `DNSPYEX_MCP_PIPE`
-- Bridge arg: `--pipe <name>`
-
-Default pipe name: `dnSpyEx.MCP`
+HTTP server configuration:
+- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:13337/`)
+- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `13337`)
 
 ## Upstream
 

@@ -6,19 +6,20 @@ using dnSpy.Contracts.Decompiler;
 using dnSpy.Contracts.Documents.Tabs;
 using dnSpy.Contracts.Output;
 using dnSpyEx.MCP.Logging;
+using dnSpyEx.MCP.Http;
 using dnSpyEx.MCP.Ipc;
 
 namespace dnSpyEx.MCP {
 	[Export]
 	sealed class McpHost : IDisposable {
-		readonly McpIpcServer server;
+		readonly McpHttpServer server;
 		readonly DispatcherUnhandledExceptionEventHandler dispatcherHandler;
 
 		[ImportingConstructor]
 		McpHost(IDocumentTabService documentTabService, IDecompilerService decompilerService, IOutputService outputService) {
 			var logger = new McpOutputLogger(outputService, OutputPaneGuid, OutputPaneName);
 			var handler = new McpRequestHandler(documentTabService, decompilerService, logger);
-			server = new McpIpcServer(handler, logger);
+			server = new McpHttpServer(handler, logger);
 
 			dispatcherHandler = (_, e) => {
 				if (e.Exception is NullReferenceException &&
