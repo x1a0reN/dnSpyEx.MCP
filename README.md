@@ -21,10 +21,14 @@ dnSpyEx.MCP extension (inside dnSpyEx)
 - Namespace/type/member listing: `listNamespaces`, `listTypes`, `listMembers`.
 - Type inspection: `getTypeInfo`, `getTypeFields`, `getTypeProperty`, `getMethodSignature`.
 - Decompilation: `decompileMethod`, `decompileField`, `decompileProperty`, `decompileEvent`, `decompileType`.
+- IL output and body stats: `decompileMethodIL`, `getMethodBodyInfo`.
 - Search utilities: `search`, `searchTypes`, `searchMembers`, `searchStrings`.
 - Reference analysis: `findReferences`.
-- Call analysis: `getCallers`, `getCallees`.
-- Type relations: `getTypeDependencies`, `getInheritanceTree`, `findPathToType`.
+- Call and usage analysis: `getCallers`, `getCallees`, `findMethodUsages`, `findFieldUsages`, `findTypeUsages`.
+- Type relations and implementations: `getTypeDependencies`, `getInheritanceTree`, `findPathToType`, `findDerivedTypes`, `findImplementations`.
+- Overrides and attributes: `getOverridesChain`, `findAttributes`.
+- Assembly graph and symbol resolution: `getAssemblyGraph`, `symbolResolve`.
+- Export helpers: `exportSelectedDecompile`.
 - UI helpers: `getSelectedText`, `getSelectedMember`, `openInDnSpy`.
 - Usage examples: `exampleFlow`.
 
@@ -83,12 +87,22 @@ Example:
 - `getTypeProperty`
 - `getMethodSignature`
 - `decompileMethod` / `decompileField` / `decompileProperty` / `decompileEvent` / `decompileType`
+- `decompileMethodIL`
+- `getMethodBodyInfo`
 - `searchTypes` / `searchMembers` / `searchStrings` / `search`
 - `findReferences`
+- `findMethodUsages` / `findFieldUsages` / `findTypeUsages`
+- `findImplementations`
+- `findDerivedTypes`
 - `getCallers` / `getCallees`
 - `getTypeDependencies`
 - `getInheritanceTree`
+- `getOverridesChain`
 - `findPathToType`
+- `findAttributes`
+- `getAssemblyGraph`
+- `symbolResolve`
+- `exportSelectedDecompile`
 - `getSelectedText`
 - `getSelectedMember`
 - `openInDnSpy`

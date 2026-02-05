@@ -81,6 +81,18 @@ namespace dnSpyEx.MCP.Ipc {
 					"findReferences" => FindReferences(parameters),
 					"getCallers" => GetCallers(parameters),
 					"getCallees" => GetCallees(parameters),
+					"findImplementations" => FindImplementations(parameters),
+					"findDerivedTypes" => FindDerivedTypes(parameters),
+					"findTypeUsages" => FindTypeUsages(parameters),
+					"findMethodUsages" => FindMethodUsages(parameters),
+					"findFieldUsages" => FindFieldUsages(parameters),
+					"decompileMethodIL" => DecompileMethodIL(parameters),
+					"getMethodBodyInfo" => GetMethodBodyInfo(parameters),
+					"findAttributes" => FindAttributes(parameters),
+					"getOverridesChain" => GetOverridesChain(parameters),
+					"getAssemblyGraph" => GetAssemblyGraph(parameters),
+					"exportSelectedDecompile" => ExportSelectedDecompile(parameters),
+					"symbolResolve" => SymbolResolve(parameters),
 					"search" => Search(parameters),
 					"getSelectedText" => GetSelectedText(),
 					"getSelectedMember" => GetSelectedMember(),
@@ -898,6 +910,1013 @@ namespace dnSpyEx.MCP.Ipc {
 			};
 		}
 
+		JToken FindImplementations(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var methodToken = GetUInt(parameters, "methodToken");
+			var typeToken = GetUInt(parameters, "typeToken");
+			var includeAbstract = GetBool(parameters, "includeAbstract", true);
+			var searchFrameworkAssemblies = GetBool(parameters, "searchFrameworkAssemblies", true);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+			if (!methodToken.HasValue && !typeToken.HasValue)
+				throw new RpcException(-32602, "Missing parameter: methodToken or typeToken");
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = FilterModules(BuildModuleIndex().Values, searchFrameworkAssemblies);
+			var allTypes = modules.SelectMany(m => m.Module.GetTypes()).ToList();
+			var derivedMap = BuildDerivedTypeMap(allTypes);
+			var typeIndex = BuildTypeIndex();
+
+			if (methodToken.HasValue) {
+				var method = ResolveMember<MethodDef>(module, methodToken.Value);
+				var declaringType = method.DeclaringType ?? throw new RpcException(-32602, "Declaring type not found");
+				if (declaringType.IsInterface) {
+					foreach (var type in allTypes) {
+						if (collector.TooManyResults)
+							break;
+						if (!includeAbstract && type.IsAbstract)
+							continue;
+						if (!TypeImplementsInterface(type, declaringType, typeIndex))
+							continue;
+						var impl = FindInterfaceImplementation(type, method);
+						if (impl is null)
+							continue;
+						collector.TryAdd($"impl:{FormatMvid(type.Module?.Mvid)}:{impl.MDToken.Raw:X8}", new JObject {
+							["implementationKind"] = "interface",
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["methodName"] = Utf8ToString(impl.Name),
+							["methodFullName"] = impl.FullName,
+							["methodToken"] = (uint)impl.MDToken.Raw,
+							["moduleMvid"] = FormatMvid(type.Module?.Mvid),
+						});
+					}
+				}
+				else {
+					foreach (var entry in EnumerateDerivedTypes(declaringType, derivedMap, includeSelf: false, maxDepth: -1)) {
+						if (collector.TooManyResults)
+							break;
+						var type = entry.Type;
+						if (!includeAbstract && type.IsAbstract)
+							continue;
+						var impl = FindOverrideMethod(type, method);
+						if (impl is null)
+							continue;
+						collector.TryAdd($"impl:{FormatMvid(type.Module?.Mvid)}:{impl.MDToken.Raw:X8}", new JObject {
+							["implementationKind"] = "override",
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["methodName"] = Utf8ToString(impl.Name),
+							["methodFullName"] = impl.FullName,
+							["methodToken"] = (uint)impl.MDToken.Raw,
+							["moduleMvid"] = FormatMvid(type.Module?.Mvid),
+						});
+					}
+				}
+			}
+			else if (typeToken.HasValue) {
+				var type = ResolveMember<TypeDef>(module, typeToken.Value);
+				if (type.IsInterface) {
+					foreach (var candidate in allTypes) {
+						if (collector.TooManyResults)
+							break;
+						if (!includeAbstract && candidate.IsAbstract)
+							continue;
+						if (!TypeImplementsInterface(candidate, type, typeIndex))
+							continue;
+						var obj = TypeToJson(candidate);
+						obj["implementationKind"] = "interface";
+						collector.TryAdd($"type:{FormatMvid(candidate.Module?.Mvid)}:{candidate.MDToken.Raw:X8}", obj);
+					}
+				}
+				else {
+					foreach (var entry in EnumerateDerivedTypes(type, derivedMap, includeSelf: false, maxDepth: -1)) {
+						if (collector.TooManyResults)
+							break;
+						if (!includeAbstract && entry.Type.IsAbstract)
+							continue;
+						var obj = TypeToJson(entry.Type);
+						obj["implementationKind"] = "derived";
+						obj["depth"] = entry.Depth;
+						collector.TryAdd($"type:{FormatMvid(entry.Type.Module?.Mvid)}:{entry.Type.MDToken.Raw:X8}", obj);
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken FindDerivedTypes(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var type = ResolveMember<TypeDef>(module, RequireUInt(parameters, "typeToken"));
+			var includeSelf = GetBool(parameters, "includeSelf", false);
+			var maxDepth = GetInt(parameters, "maxDepth", -1);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var derivedMap = BuildDerivedTypeMap(GetAllTypes());
+
+			if (includeSelf) {
+				var obj = TypeToJson(type);
+				obj["depth"] = 0;
+				collector.TryAdd($"type:{FormatMvid(type.Module?.Mvid)}:{type.MDToken.Raw:X8}", obj);
+			}
+
+			foreach (var entry in EnumerateDerivedTypes(type, derivedMap, includeSelf: false, maxDepth: maxDepth)) {
+				if (collector.TooManyResults)
+					break;
+				var obj = TypeToJson(entry.Type);
+				obj["depth"] = entry.Depth;
+				collector.TryAdd($"type:{FormatMvid(entry.Type.Module?.Mvid)}:{entry.Type.MDToken.Raw:X8}", obj);
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken FindTypeUsages(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var target = ResolveMember<TypeDef>(module, RequireUInt(parameters, "typeToken"));
+			var searchFrameworkAssemblies = GetBool(parameters, "searchFrameworkAssemblies", true);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = FilterModules(BuildModuleIndex().Values, searchFrameworkAssemblies);
+			var typeIndex = BuildTypeIndex();
+			var targetName = target.FullName;
+
+			foreach (var moduleItem in modules) {
+				foreach (var type in moduleItem.Module.GetTypes()) {
+					if (collector.TooManyResults)
+						break;
+
+					if (TypeRefMatches(type.BaseType, target)) {
+						collector.TryAdd($"base:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "baseType",
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var iface in type.Interfaces) {
+						if (!TypeRefMatches(iface.Interface, target))
+							continue;
+						collector.TryAdd($"iface:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}:{iface.Interface?.FullName}", new JObject {
+							["usageKind"] = "interface",
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var field in type.Fields) {
+						if (!TypeSigMatchesTarget(field.FieldType, target, typeIndex))
+							continue;
+						collector.TryAdd($"field:{moduleItem.ModuleMvid}:{field.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "field",
+							["memberKind"] = "field",
+							["memberName"] = Utf8ToString(field.Name),
+							["memberFullName"] = field.FullName,
+							["memberToken"] = (uint)field.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var prop in type.Properties) {
+						if (!TypeSigMatchesTarget(prop.PropertySig?.RetType, target, typeIndex))
+							continue;
+						collector.TryAdd($"prop:{moduleItem.ModuleMvid}:{prop.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "property",
+							["memberKind"] = "property",
+							["memberName"] = Utf8ToString(prop.Name),
+							["memberFullName"] = prop.FullName,
+							["memberToken"] = (uint)prop.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var method in type.Methods) {
+						if (TypeSigMatchesTarget(method.ReturnType, target, typeIndex)) {
+							collector.TryAdd($"ret:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}", new JObject {
+								["usageKind"] = "returnType",
+								["memberKind"] = "method",
+								["memberName"] = Utf8ToString(method.Name),
+								["memberFullName"] = method.FullName,
+								["memberToken"] = (uint)method.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+								["targetFullName"] = targetName,
+							});
+						}
+
+						foreach (var param in method.Parameters) {
+							if (param.IsHiddenThisParameter || param.IsReturnTypeParameter)
+								continue;
+							if (!TypeSigMatchesTarget(param.Type, target, typeIndex))
+								continue;
+							collector.TryAdd($"param:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{param.Index}", new JObject {
+								["usageKind"] = "paramType",
+								["memberKind"] = "param",
+								["memberName"] = param.Name ?? string.Empty,
+								["memberIndex"] = param.Index,
+								["methodToken"] = (uint)method.MDToken.Raw,
+								["methodFullName"] = method.FullName,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+								["targetFullName"] = targetName,
+							});
+						}
+
+					foreach (var gp in method.GenericParameters) {
+						foreach (var constraint in gp.GenericParamConstraints) {
+							if (!TypeRefMatches(constraint.Constraint, target))
+								continue;
+							collector.TryAdd($"methodgp:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{gp.Number}", new JObject {
+								["usageKind"] = "genericConstraint",
+								["memberKind"] = "method",
+									["memberName"] = Utf8ToString(method.Name),
+									["memberFullName"] = method.FullName,
+									["memberToken"] = (uint)method.MDToken.Raw,
+									["declaringType"] = type.FullName,
+									["declaringTypeToken"] = (uint)type.MDToken.Raw,
+									["moduleMvid"] = moduleItem.ModuleMvid,
+									["documentFilename"] = moduleItem.Filename,
+									["targetFullName"] = targetName,
+								});
+							}
+						}
+					}
+
+					foreach (var gp in type.GenericParameters) {
+						foreach (var constraint in gp.GenericParamConstraints) {
+							if (!TypeRefMatches(constraint.Constraint, target))
+								continue;
+							collector.TryAdd($"typegp:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}:{gp.Number}", new JObject {
+								["usageKind"] = "genericConstraint",
+								["memberKind"] = "type",
+								["memberName"] = Utf8ToString(type.Name),
+								["memberFullName"] = type.FullName,
+								["memberToken"] = (uint)type.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+								["targetFullName"] = targetName,
+							});
+						}
+					}
+
+					if (TypeHasAttributeUsage(type.CustomAttributes, target)) {
+						collector.TryAdd($"typeattr:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "attribute",
+							["memberKind"] = "type",
+							["memberName"] = Utf8ToString(type.Name),
+							["memberFullName"] = type.FullName,
+							["memberToken"] = (uint)type.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var field in type.Fields) {
+						if (!TypeHasAttributeUsage(field.CustomAttributes, target))
+							continue;
+						collector.TryAdd($"fieldattr:{moduleItem.ModuleMvid}:{field.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "attribute",
+							["memberKind"] = "field",
+							["memberName"] = Utf8ToString(field.Name),
+							["memberFullName"] = field.FullName,
+							["memberToken"] = (uint)field.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var prop in type.Properties) {
+						if (!TypeHasAttributeUsage(prop.CustomAttributes, target))
+							continue;
+						collector.TryAdd($"propattr:{moduleItem.ModuleMvid}:{prop.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "attribute",
+							["memberKind"] = "property",
+							["memberName"] = Utf8ToString(prop.Name),
+							["memberFullName"] = prop.FullName,
+							["memberToken"] = (uint)prop.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var ev in type.Events) {
+						if (!TypeHasAttributeUsage(ev.CustomAttributes, target))
+							continue;
+						collector.TryAdd($"eventattr:{moduleItem.ModuleMvid}:{ev.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "attribute",
+							["memberKind"] = "event",
+							["memberName"] = Utf8ToString(ev.Name),
+							["memberFullName"] = ev.FullName,
+							["memberToken"] = (uint)ev.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+
+					foreach (var method in type.Methods) {
+						if (!TypeHasAttributeUsage(method.CustomAttributes, target))
+							continue;
+						collector.TryAdd($"methodattr:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}", new JObject {
+							["usageKind"] = "attribute",
+							["memberKind"] = "method",
+							["memberName"] = Utf8ToString(method.Name),
+							["memberFullName"] = method.FullName,
+							["memberToken"] = (uint)method.MDToken.Raw,
+							["declaringType"] = type.FullName,
+							["declaringTypeToken"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+							["targetFullName"] = targetName,
+						});
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken FindMethodUsages(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var target = ResolveMember<MethodDef>(module, RequireUInt(parameters, "token"));
+			var searchFrameworkAssemblies = GetBool(parameters, "searchFrameworkAssemblies", true);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = FilterModules(BuildModuleIndex().Values, searchFrameworkAssemblies);
+
+			foreach (var moduleItem in modules) {
+				foreach (var type in moduleItem.Module.GetTypes()) {
+					foreach (var method in type.Methods) {
+						if (collector.TooManyResults)
+							return new JObject { ["results"] = results, ["tooManyResults"] = collector.TooManyResults };
+						if (!method.HasBody || method.Body is null)
+							continue;
+						foreach (var instr in method.Body.Instructions) {
+							if (collector.TooManyResults)
+								return new JObject { ["results"] = results, ["tooManyResults"] = collector.TooManyResults };
+							if (instr.Operand is not IMethod candidate)
+								continue;
+							if (!MethodMatchesTarget(candidate, target))
+								continue;
+							var callKind = GetCallKind(instr.OpCode.Code);
+							collector.TryAdd($"call:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{instr.Offset}:{target.MDToken.Raw:X8}", new JObject {
+								["usageKind"] = "call",
+								["callKind"] = callKind,
+								["opcode"] = instr.OpCode.Name,
+								["ilOffset"] = instr.Offset,
+								["methodToken"] = (uint)method.MDToken.Raw,
+								["methodFullName"] = method.FullName,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+								["targetToken"] = (uint)target.MDToken.Raw,
+								["targetFullName"] = target.FullName,
+							});
+						}
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken FindFieldUsages(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var target = ResolveMember<FieldDef>(module, RequireUInt(parameters, "token"));
+			var accessKind = (GetString(parameters, "accessKind") ?? "any").ToLowerInvariant();
+			var searchFrameworkAssemblies = GetBool(parameters, "searchFrameworkAssemblies", true);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+			if (accessKind != "any" && accessKind != "read" && accessKind != "write" && accessKind != "address")
+				throw new RpcException(-32602, $"Unknown accessKind: {accessKind}");
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = FilterModules(BuildModuleIndex().Values, searchFrameworkAssemblies);
+
+			foreach (var moduleItem in modules) {
+				foreach (var type in moduleItem.Module.GetTypes()) {
+					foreach (var method in type.Methods) {
+						if (collector.TooManyResults)
+							return new JObject { ["results"] = results, ["tooManyResults"] = collector.TooManyResults };
+						if (!method.HasBody || method.Body is null)
+							continue;
+						foreach (var instr in method.Body.Instructions) {
+							if (collector.TooManyResults)
+								return new JObject { ["results"] = results, ["tooManyResults"] = collector.TooManyResults };
+							if (instr.Operand is not IField candidate)
+								continue;
+							if (!FieldMatchesTarget(candidate, target))
+								continue;
+							var kind = GetFieldAccessKind(instr.OpCode.Code);
+							if (accessKind != "any" && kind != accessKind)
+								continue;
+							collector.TryAdd($"field:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{instr.Offset}:{target.MDToken.Raw:X8}", new JObject {
+								["usageKind"] = "fieldAccess",
+								["accessKind"] = kind,
+								["opcode"] = instr.OpCode.Name,
+								["ilOffset"] = instr.Offset,
+								["methodToken"] = (uint)method.MDToken.Raw,
+								["methodFullName"] = method.FullName,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+								["targetToken"] = (uint)target.MDToken.Raw,
+								["targetFullName"] = target.FullName,
+							});
+						}
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken DecompileMethodIL(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var method = ResolveMember<MethodDef>(module, RequireUInt(parameters, "token"));
+			if (!method.HasBody || method.Body is null) {
+				return new JObject {
+					["hasBody"] = false,
+					["methodToken"] = (uint)method.MDToken.Raw,
+					["methodFullName"] = method.FullName,
+				};
+			}
+
+			var instructions = new JArray();
+			var text = new StringBuilder();
+			foreach (var instr in method.Body.Instructions) {
+				var operand = FormatInstructionOperand(instr.Operand);
+				instructions.Add(new JObject {
+					["offset"] = instr.Offset,
+					["opcode"] = instr.OpCode.Name,
+					["operand"] = operand,
+				});
+				text.Append("IL_");
+				text.Append(instr.Offset.ToString("X4"));
+				text.Append(": ");
+				text.Append(instr.OpCode.Name);
+				if (operand is not null && operand.Type != JTokenType.Null) {
+					text.Append(' ');
+					text.Append(operand.Type == JTokenType.String ? operand.Value<string>() : operand.ToString());
+				}
+				text.AppendLine();
+			}
+
+			return new JObject {
+				["hasBody"] = true,
+				["methodToken"] = (uint)method.MDToken.Raw,
+				["methodFullName"] = method.FullName,
+				["maxStack"] = method.Body.MaxStack,
+				["instructionCount"] = method.Body.Instructions.Count,
+				["instructions"] = instructions,
+				["text"] = text.ToString(),
+			};
+		}
+
+		JToken GetMethodBodyInfo(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var method = ResolveMember<MethodDef>(module, RequireUInt(parameters, "token"));
+			if (!method.HasBody || method.Body is null) {
+				return new JObject {
+					["hasBody"] = false,
+					["methodToken"] = (uint)method.MDToken.Raw,
+					["methodFullName"] = method.FullName,
+				};
+			}
+
+			var body = method.Body;
+			var branchCount = 0;
+			var callCount = 0;
+			var throwCount = 0;
+			var switchCount = 0;
+			foreach (var instr in body.Instructions) {
+				switch (instr.OpCode.FlowControl) {
+				case FlowControl.Branch:
+				case FlowControl.Cond_Branch:
+					branchCount++;
+					break;
+				case FlowControl.Call:
+					callCount++;
+					break;
+				}
+				if (instr.OpCode.Code == Code.Throw || instr.OpCode.Code == Code.Rethrow)
+					throwCount++;
+				if (instr.OpCode.Code == Code.Switch)
+					switchCount++;
+			}
+
+			return new JObject {
+				["hasBody"] = true,
+				["methodToken"] = (uint)method.MDToken.Raw,
+				["methodFullName"] = method.FullName,
+				["instructionCount"] = body.Instructions.Count,
+				["localCount"] = body.Variables.Count,
+				["exceptionHandlerCount"] = body.ExceptionHandlers.Count,
+				["maxStack"] = body.MaxStack,
+				["initLocals"] = body.InitLocals,
+				["branchCount"] = branchCount,
+				["callCount"] = callCount,
+				["throwCount"] = throwCount,
+				["switchCount"] = switchCount,
+			};
+		}
+
+		JToken FindAttributes(JObject? parameters) {
+			var pattern = RequireString(parameters, "pattern");
+			var caseSensitive = GetBool(parameters, "caseSensitive", false);
+			var useRegex = GetBool(parameters, "useRegex", false);
+			var includeAssemblyModule = GetBool(parameters, "includeAssemblyModule", true);
+			var includeParameters = GetBool(parameters, "includeParameters", false);
+			var searchFrameworkAssemblies = GetBool(parameters, "searchFrameworkAssemblies", true);
+			var searchCompilerGeneratedMembers = GetBool(parameters, "searchCompilerGeneratedMembers", true);
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			var matcher = PatternMatcher.From(pattern, useRegex, caseSensitive);
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = FilterModules(BuildModuleIndex().Values, searchFrameworkAssemblies);
+
+			foreach (var moduleItem in modules) {
+				if (collector.TooManyResults)
+					break;
+				if (includeAssemblyModule) {
+					var asm = moduleItem.Module.Assembly;
+					if (asm is not null) {
+						foreach (var attr in asm.CustomAttributes) {
+							if (!AttributeMatches(attr, matcher))
+								continue;
+							collector.TryAdd($"asmattr:{moduleItem.ModuleMvid}:{attr.AttributeType?.FullName}", new JObject {
+								["targetKind"] = "assembly",
+								["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+								["assemblyFullName"] = asm.FullName ?? string.Empty,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+							});
+						}
+					}
+
+					foreach (var attr in moduleItem.Module.CustomAttributes) {
+						if (!AttributeMatches(attr, matcher))
+							continue;
+						collector.TryAdd($"modattr:{moduleItem.ModuleMvid}:{attr.AttributeType?.FullName}", new JObject {
+							["targetKind"] = "module",
+							["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+						});
+					}
+				}
+
+				foreach (var type in moduleItem.Module.GetTypes()) {
+					if (collector.TooManyResults)
+						break;
+					if (!searchCompilerGeneratedMembers && IsCompilerGenerated(type))
+						continue;
+					foreach (var attr in type.CustomAttributes) {
+						if (!AttributeMatches(attr, matcher))
+							continue;
+						collector.TryAdd($"typeattr:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}:{attr.AttributeType?.FullName}", new JObject {
+							["targetKind"] = "type",
+							["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+							["targetName"] = Utf8ToString(type.Name),
+							["targetFullName"] = type.FullName,
+							["token"] = (uint)type.MDToken.Raw,
+							["moduleMvid"] = moduleItem.ModuleMvid,
+							["documentFilename"] = moduleItem.Filename,
+						});
+					}
+
+					foreach (var field in type.Fields) {
+						if (!searchCompilerGeneratedMembers && IsCompilerGenerated(field))
+							continue;
+						foreach (var attr in field.CustomAttributes) {
+							if (!AttributeMatches(attr, matcher))
+								continue;
+							collector.TryAdd($"fieldattr:{moduleItem.ModuleMvid}:{field.MDToken.Raw:X8}:{attr.AttributeType?.FullName}", new JObject {
+								["targetKind"] = "field",
+								["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+								["targetName"] = Utf8ToString(field.Name),
+								["targetFullName"] = field.FullName,
+								["token"] = (uint)field.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+							});
+						}
+					}
+
+					foreach (var prop in type.Properties) {
+						if (!searchCompilerGeneratedMembers && IsCompilerGenerated(prop))
+							continue;
+						foreach (var attr in prop.CustomAttributes) {
+							if (!AttributeMatches(attr, matcher))
+								continue;
+							collector.TryAdd($"propattr:{moduleItem.ModuleMvid}:{prop.MDToken.Raw:X8}:{attr.AttributeType?.FullName}", new JObject {
+								["targetKind"] = "property",
+								["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+								["targetName"] = Utf8ToString(prop.Name),
+								["targetFullName"] = prop.FullName,
+								["token"] = (uint)prop.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+							});
+						}
+					}
+
+					foreach (var ev in type.Events) {
+						if (!searchCompilerGeneratedMembers && IsCompilerGenerated(ev))
+							continue;
+						foreach (var attr in ev.CustomAttributes) {
+							if (!AttributeMatches(attr, matcher))
+								continue;
+							collector.TryAdd($"eventattr:{moduleItem.ModuleMvid}:{ev.MDToken.Raw:X8}:{attr.AttributeType?.FullName}", new JObject {
+								["targetKind"] = "event",
+								["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+								["targetName"] = Utf8ToString(ev.Name),
+								["targetFullName"] = ev.FullName,
+								["token"] = (uint)ev.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+							});
+						}
+					}
+
+					foreach (var method in type.Methods) {
+						if (!searchCompilerGeneratedMembers && IsCompilerGenerated(method))
+							continue;
+						foreach (var attr in method.CustomAttributes) {
+							if (!AttributeMatches(attr, matcher))
+								continue;
+							collector.TryAdd($"methodattr:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{attr.AttributeType?.FullName}", new JObject {
+								["targetKind"] = "method",
+								["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+								["targetName"] = Utf8ToString(method.Name),
+								["targetFullName"] = method.FullName,
+								["token"] = (uint)method.MDToken.Raw,
+								["declaringType"] = type.FullName,
+								["declaringTypeToken"] = (uint)type.MDToken.Raw,
+								["moduleMvid"] = moduleItem.ModuleMvid,
+								["documentFilename"] = moduleItem.Filename,
+							});
+						}
+
+						if (!includeParameters)
+							continue;
+						foreach (var param in method.Parameters) {
+							if (param.IsHiddenThisParameter || param.IsReturnTypeParameter)
+								continue;
+							if (param.ParamDef is null)
+								continue;
+							foreach (var attr in param.ParamDef.CustomAttributes) {
+								if (!AttributeMatches(attr, matcher))
+									continue;
+								collector.TryAdd($"paramattr:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}:{param.Index}:{attr.AttributeType?.FullName}", new JObject {
+									["targetKind"] = "param",
+									["attributeFullName"] = attr.AttributeType?.FullName ?? string.Empty,
+									["targetName"] = param.Name ?? string.Empty,
+									["paramIndex"] = param.Index,
+									["methodToken"] = (uint)method.MDToken.Raw,
+									["methodFullName"] = method.FullName,
+									["declaringType"] = type.FullName,
+									["declaringTypeToken"] = (uint)type.MDToken.Raw,
+									["moduleMvid"] = moduleItem.ModuleMvid,
+									["documentFilename"] = moduleItem.Filename,
+								});
+							}
+						}
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken GetOverridesChain(JObject? parameters) {
+			var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+			var method = ResolveMember<MethodDef>(module, RequireUInt(parameters, "token"));
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			var baseChain = new List<MethodDef>();
+			var current = method;
+			while (true) {
+				baseChain.Add(current);
+				var baseMethod = FindBaseMethod(current);
+				if (baseMethod is null)
+					break;
+				current = baseMethod;
+			}
+			baseChain.Reverse();
+
+			var baseArray = new JArray(baseChain.Select(m => new JObject {
+				["methodName"] = Utf8ToString(m.Name),
+				["methodFullName"] = m.FullName,
+				["methodToken"] = (uint)m.MDToken.Raw,
+				["declaringType"] = m.DeclaringType?.FullName ?? string.Empty,
+				["declaringTypeToken"] = m.DeclaringType is null ? 0u : (uint)m.DeclaringType.MDToken.Raw,
+				["moduleMvid"] = FormatMvid(m.Module?.Mvid),
+			}));
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var declaringType = method.DeclaringType;
+			if (declaringType is not null) {
+				var derivedMap = BuildDerivedTypeMap(GetAllTypes());
+				foreach (var entry in EnumerateDerivedTypes(declaringType, derivedMap, includeSelf: false, maxDepth: -1)) {
+					if (collector.TooManyResults)
+						break;
+					var impl = FindOverrideMethod(entry.Type, method);
+					if (impl is null)
+						continue;
+					collector.TryAdd($"override:{FormatMvid(entry.Type.Module?.Mvid)}:{impl.MDToken.Raw:X8}", new JObject {
+						["methodName"] = Utf8ToString(impl.Name),
+						["methodFullName"] = impl.FullName,
+						["methodToken"] = (uint)impl.MDToken.Raw,
+						["declaringType"] = entry.Type.FullName,
+						["declaringTypeToken"] = (uint)entry.Type.MDToken.Raw,
+						["moduleMvid"] = FormatMvid(entry.Type.Module?.Mvid),
+						["depth"] = entry.Depth,
+					});
+				}
+			}
+
+			return new JObject {
+				["baseChain"] = baseArray,
+				["overrides"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
+		JToken GetAssemblyGraph(JObject? parameters) {
+			var includeFrameworkAssemblies = GetBool(parameters, "includeFrameworkAssemblies", true);
+			var modules = FilterModules(BuildModuleIndex().Values, includeFrameworkAssemblies);
+			var nodes = new JArray();
+			var edges = new JArray();
+			var nodeKeys = new HashSet<string>(StringComparer.Ordinal);
+			var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+
+			foreach (var moduleItem in modules) {
+				var asm = moduleItem.Module.Assembly;
+				var asmName = asm?.Name is null ? string.Empty : Utf8ToString(asm.Name);
+				var asmFullName = asm?.FullName ?? string.Empty;
+				var nodeKey = string.IsNullOrEmpty(asmFullName) ? moduleItem.ModuleMvid : asmFullName;
+				if (nodeKeys.Add(nodeKey)) {
+					nodes.Add(new JObject {
+						["assemblyName"] = asmName,
+						["assemblyFullName"] = asmFullName,
+						["moduleMvid"] = moduleItem.ModuleMvid,
+						["filename"] = moduleItem.Filename,
+					});
+				}
+
+				foreach (var asmRef in moduleItem.Module.GetAssemblyRefs()) {
+					var refFullName = asmRef.FullName ?? string.Empty;
+					var edgeKey = $"{nodeKey}->{refFullName}";
+					if (!edgeKeys.Add(edgeKey))
+						continue;
+					edges.Add(new JObject {
+						["fromAssembly"] = asmFullName,
+						["fromModuleMvid"] = moduleItem.ModuleMvid,
+						["toAssembly"] = Utf8ToString(asmRef.Name),
+						["toAssemblyFullName"] = refFullName,
+					});
+				}
+			}
+
+			return new JObject {
+				["nodes"] = nodes,
+				["edges"] = edges,
+			};
+		}
+
+		JToken ExportSelectedDecompile(JObject? parameters) {
+			var moduleMvid = GetString(parameters, "moduleMvid");
+			var token = GetUInt(parameters, "token");
+			var outputPath = GetString(parameters, "outputPath");
+			IMemberDef? member = null;
+
+			if (!string.IsNullOrEmpty(moduleMvid) && token.HasValue) {
+				var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+				var resolved = module.ResolveToken(token.Value);
+				member = resolved as IMemberDef;
+				if (member is null)
+					throw new RpcException(-32602, "Member not found");
+			}
+			else {
+				member = TryGetSelectedMemberDef();
+				if (member is null)
+					throw new RpcException(-32602, "No selection");
+			}
+
+			var decompiled = DecompileResolved(member) as JObject;
+			var language = decompiled?["language"]?.Value<string>() ?? string.Empty;
+			var text = decompiled?["text"]?.Value<string>() ?? string.Empty;
+
+			if (!string.IsNullOrEmpty(outputPath)) {
+				var dir = Path.GetDirectoryName(outputPath);
+				if (!string.IsNullOrEmpty(dir))
+					Directory.CreateDirectory(dir);
+				File.WriteAllText(outputPath, text, Encoding.UTF8);
+				return new JObject {
+					["written"] = true,
+					["outputPath"] = outputPath,
+					["language"] = language,
+				};
+			}
+
+			return new JObject {
+				["written"] = false,
+				["language"] = language,
+				["text"] = text,
+			};
+		}
+
+		JToken SymbolResolve(JObject? parameters) {
+			var token = GetUInt(parameters, "token");
+			var fullName = GetString(parameters, "fullName");
+			var kind = (GetString(parameters, "kind") ?? "any").ToLowerInvariant();
+			var maxResults = GetInt(parameters, "maxResults", DefaultMaxResults);
+			if (maxResults <= 0)
+				maxResults = DefaultMaxResults;
+
+			if (token.HasValue) {
+				var module = FindModule(RequireGuid(parameters, "moduleMvid"));
+				var resolved = module.ResolveToken(token.Value);
+				if (resolved is TypeDef typeDef)
+					return TypeToJson(typeDef);
+				if (resolved is MethodDef methodDef)
+					return MemberToJson("method", module, methodDef);
+				if (resolved is FieldDef fieldDef)
+					return MemberToJson("field", module, fieldDef);
+				if (resolved is PropertyDef propDef)
+					return MemberToJson("property", module, propDef);
+				if (resolved is EventDef eventDef)
+					return MemberToJson("event", module, eventDef);
+				throw new RpcException(-32602, "Member not found");
+			}
+
+			if (string.IsNullOrWhiteSpace(fullName))
+				throw new RpcException(-32602, "Missing parameter: fullName");
+
+			var results = new JArray();
+			var collector = new SearchCollector(results, maxResults);
+			var modules = BuildModuleIndex().Values;
+			var allowType = kind == "any" || kind == "type";
+			var allowMethod = kind == "any" || kind == "method";
+			var allowField = kind == "any" || kind == "field";
+			var allowProperty = kind == "any" || kind == "property";
+			var allowEvent = kind == "any" || kind == "event";
+
+			foreach (var moduleItem in modules) {
+				foreach (var type in moduleItem.Module.GetTypes()) {
+					if (collector.TooManyResults)
+						break;
+					if (allowType && string.Equals(type.FullName, fullName, StringComparison.Ordinal)) {
+						var obj = TypeToJson(type);
+						obj["documentFilename"] = moduleItem.Filename;
+						collector.TryAdd($"type:{moduleItem.ModuleMvid}:{type.MDToken.Raw:X8}", obj);
+					}
+
+					if (allowMethod) {
+						foreach (var method in type.Methods) {
+							if (!string.Equals(method.FullName, fullName, StringComparison.Ordinal))
+								continue;
+							var obj = MemberToJson("method", moduleItem.Module, method);
+							obj["declaringType"] = type.FullName;
+							obj["declaringTypeToken"] = (uint)type.MDToken.Raw;
+							obj["documentFilename"] = moduleItem.Filename;
+							collector.TryAdd($"method:{moduleItem.ModuleMvid}:{method.MDToken.Raw:X8}", obj);
+							if (collector.TooManyResults)
+								break;
+						}
+					}
+
+					if (allowField) {
+						foreach (var field in type.Fields) {
+							if (!string.Equals(field.FullName, fullName, StringComparison.Ordinal))
+								continue;
+							var obj = MemberToJson("field", moduleItem.Module, field);
+							obj["declaringType"] = type.FullName;
+							obj["declaringTypeToken"] = (uint)type.MDToken.Raw;
+							obj["documentFilename"] = moduleItem.Filename;
+							collector.TryAdd($"field:{moduleItem.ModuleMvid}:{field.MDToken.Raw:X8}", obj);
+							if (collector.TooManyResults)
+								break;
+						}
+					}
+
+					if (allowProperty) {
+						foreach (var prop in type.Properties) {
+							if (!string.Equals(prop.FullName, fullName, StringComparison.Ordinal))
+								continue;
+							var obj = MemberToJson("property", moduleItem.Module, prop);
+							obj["declaringType"] = type.FullName;
+							obj["declaringTypeToken"] = (uint)type.MDToken.Raw;
+							obj["documentFilename"] = moduleItem.Filename;
+							collector.TryAdd($"prop:{moduleItem.ModuleMvid}:{prop.MDToken.Raw:X8}", obj);
+							if (collector.TooManyResults)
+								break;
+						}
+					}
+
+					if (allowEvent) {
+						foreach (var ev in type.Events) {
+							if (!string.Equals(ev.FullName, fullName, StringComparison.Ordinal))
+								continue;
+							var obj = MemberToJson("event", moduleItem.Module, ev);
+							obj["declaringType"] = type.FullName;
+							obj["declaringTypeToken"] = (uint)type.MDToken.Raw;
+							obj["documentFilename"] = moduleItem.Filename;
+							collector.TryAdd($"event:{moduleItem.ModuleMvid}:{ev.MDToken.Raw:X8}", obj);
+							if (collector.TooManyResults)
+								break;
+						}
+					}
+				}
+			}
+
+			return new JObject {
+				["results"] = results,
+				["tooManyResults"] = collector.TooManyResults,
+			};
+		}
+
 		JToken Search(JObject? parameters) {
 			var searchText = RequireString(parameters, "searchText");
 			if (string.IsNullOrEmpty(searchText))
@@ -974,6 +1993,23 @@ namespace dnSpyEx.MCP.Ipc {
 			return new JObject {
 				["hasSelection"] = false,
 			};
+		}
+
+		IMemberDef? TryGetSelectedMemberDef() {
+			var selection = documentTabService.DocumentTreeView.TreeView.TopLevelSelection.FirstOrDefault();
+			if (selection is null)
+				return null;
+			if (selection.GetAncestorOrSelf<MethodNode>() is MethodNode methodNode)
+				return methodNode.MethodDef;
+			if (selection.GetAncestorOrSelf<FieldNode>() is FieldNode fieldNode)
+				return fieldNode.FieldDef;
+			if (selection.GetAncestorOrSelf<PropertyNode>() is PropertyNode propertyNode)
+				return propertyNode.PropertyDef;
+			if (selection.GetAncestorOrSelf<EventNode>() is EventNode eventNode)
+				return eventNode.EventDef;
+			if (selection.GetAncestorOrSelf<TypeNode>() is TypeNode typeNode)
+				return typeNode.TypeDef;
+			return null;
 		}
 
 		JToken OpenInDnSpy(JObject? parameters) {
@@ -1799,6 +2835,16 @@ namespace dnSpyEx.MCP.Ipc {
 			}
 		}
 
+		readonly struct DerivedTypeEntry {
+			public TypeDef Type { get; }
+			public int Depth { get; }
+
+			public DerivedTypeEntry(TypeDef type, int depth) {
+				Type = type;
+				Depth = depth;
+			}
+		}
+
 		readonly struct MethodTarget {
 			public MethodDef Method { get; }
 			public string? Accessor { get; }
@@ -1808,6 +2854,8 @@ namespace dnSpyEx.MCP.Ipc {
 				Accessor = accessor;
 			}
 		}
+
+		static readonly SigComparer SigComparer = new SigComparer();
 
 		static readonly string ExampleFlowText =
 @"HTTP JSON-RPC example:
@@ -1830,12 +2878,25 @@ Core methods:
 - getTypeProperty { moduleMvid, propertyToken } or { moduleMvid, typeToken, name }
 - getMethodSignature { moduleMvid, token }
 - decompileMethod/decompileField/decompileProperty/decompileEvent/decompileType
+- decompileMethodIL { moduleMvid, token }
+- getMethodBodyInfo { moduleMvid, token }
 - searchTypes/searchMembers/searchStrings
+- search { searchText, searchType, searchLocation }
 - findReferences { kind, moduleMvid, token }
+- findMethodUsages { moduleMvid, token }
+- findFieldUsages { moduleMvid, token, accessKind }
+- findTypeUsages { moduleMvid, typeToken }
+- findImplementations { moduleMvid, methodToken | typeToken }
+- findDerivedTypes { moduleMvid, typeToken }
 - getCallers/getCallees { moduleMvid, token }
 - getTypeDependencies { moduleMvid, typeToken }
 - getInheritanceTree { moduleMvid, typeToken }
+- getOverridesChain { moduleMvid, token }
 - findPathToType { fromModuleMvid, fromTypeToken, toTypeFullName | toModuleMvid+toTypeToken }
+- findAttributes { pattern }
+- getAssemblyGraph
+- symbolResolve { moduleMvid+token | fullName }
+- exportSelectedDecompile { outputPath?, moduleMvid?, token? }
 - getSelectedText
 - getSelectedMember
 - openInDnSpy { moduleMvid, token, newTab }";
@@ -2300,6 +3361,195 @@ Core methods:
 						["targetFullName"] = target.FullName,
 					});
 				}
+			}
+		}
+
+		static IEnumerable<DerivedTypeEntry> EnumerateDerivedTypes(TypeDef baseType, Dictionary<string, List<TypeDef>> derivedMap, bool includeSelf, int maxDepth) {
+			var seen = new HashSet<TypeDef>(new TypeDefRefComparer());
+			var queue = new Queue<DerivedTypeEntry>();
+			if (includeSelf) {
+				seen.Add(baseType);
+				yield return new DerivedTypeEntry(baseType, 0);
+			}
+
+			if (string.IsNullOrEmpty(baseType.FullName))
+				yield break;
+			if (!derivedMap.TryGetValue(baseType.FullName, out var children))
+				yield break;
+
+			foreach (var child in children)
+				queue.Enqueue(new DerivedTypeEntry(child, 1));
+
+			while (queue.Count > 0) {
+				var entry = queue.Dequeue();
+				if (!seen.Add(entry.Type))
+					continue;
+				yield return entry;
+				if (maxDepth >= 0 && entry.Depth >= maxDepth)
+					continue;
+				if (!derivedMap.TryGetValue(entry.Type.FullName, out var next))
+					continue;
+				foreach (var child in next)
+					queue.Enqueue(new DerivedTypeEntry(child, entry.Depth + 1));
+			}
+		}
+
+		static bool TypeImplementsInterface(TypeDef type, TypeDef iface, Dictionary<string, TypeDef> index) {
+			var visited = new HashSet<string>(StringComparer.Ordinal);
+			return TypeImplementsInterfaceCore(type, iface, visited, index);
+		}
+
+		static bool TypeImplementsInterfaceCore(TypeDef type, TypeDef iface, HashSet<string> visited, Dictionary<string, TypeDef> index) {
+			if (!visited.Add(type.FullName))
+				return false;
+			foreach (var impl in type.Interfaces) {
+				if (TypeRefMatches(impl.Interface, iface))
+					return true;
+				var resolved = ResolveTypeDef(impl.Interface, index);
+				if (resolved is not null && TypeImplementsInterfaceCore(resolved, iface, visited, index))
+					return true;
+			}
+			var baseDef = ResolveTypeDef(type.BaseType, index);
+			if (baseDef is not null)
+				return TypeImplementsInterfaceCore(baseDef, iface, visited, index);
+			return false;
+		}
+
+		static MethodDef? FindInterfaceImplementation(TypeDef type, MethodDef ifaceMethod) {
+			foreach (var method in type.Methods) {
+				if (method.Overrides.Any(o => MethodRefMatches(o.MethodDeclaration, ifaceMethod)))
+					return method;
+				if (!MethodSignatureMatches(method, ifaceMethod))
+					continue;
+				if (string.Equals(Utf8ToString(method.Name), Utf8ToString(ifaceMethod.Name), StringComparison.Ordinal))
+					return method;
+			}
+			return null;
+		}
+
+		static MethodDef? FindOverrideMethod(TypeDef type, MethodDef target) {
+			foreach (var method in type.Methods) {
+				if (!MethodSignatureMatches(method, target))
+					continue;
+				if (method.Overrides.Any(o => MethodRefMatches(o.MethodDeclaration, target)))
+					return method;
+				var baseMethod = FindBaseMethod(method);
+				if (baseMethod is not null && MethodMatchesTarget(baseMethod, target))
+					return method;
+			}
+			return null;
+		}
+
+		static MethodDef? FindBaseMethod(MethodDef method) {
+			var baseDef = method.DeclaringType?.BaseType?.ResolveTypeDef();
+			while (baseDef is not null) {
+				var match = baseDef.Methods.FirstOrDefault(m => MethodSignatureMatches(m, method));
+				if (match is not null)
+					return match;
+				baseDef = baseDef.BaseType?.ResolveTypeDef();
+			}
+			return null;
+		}
+
+		static bool MethodRefMatches(IMethodDefOrRef? candidate, MethodDef target) {
+			if (candidate is null)
+				return false;
+			return MethodMatchesTarget(candidate, target);
+		}
+
+		static bool MethodSignatureMatches(MethodDef candidate, MethodDef target) {
+			if (!string.Equals(Utf8ToString(candidate.Name), Utf8ToString(target.Name), StringComparison.Ordinal))
+				return false;
+			if (candidate.MethodSig is null || target.MethodSig is null)
+				return false;
+			return SigComparer.Equals(candidate.MethodSig, target.MethodSig);
+		}
+
+		static bool TypeRefMatches(ITypeDefOrRef? candidate, TypeDef target) {
+			if (candidate is null)
+				return false;
+			if (candidate is TypeDef def)
+				return ReferenceEquals(def, target) || string.Equals(def.FullName, target.FullName, StringComparison.Ordinal);
+			var resolved = candidate.ResolveTypeDef();
+			if (resolved is not null)
+				return ReferenceEquals(resolved, target) || string.Equals(resolved.FullName, target.FullName, StringComparison.Ordinal);
+			return string.Equals(candidate.FullName, target.FullName, StringComparison.Ordinal);
+		}
+
+		static bool TypeSigMatchesTarget(TypeSig? sig, TypeDef target, Dictionary<string, TypeDef> index) {
+			if (sig is null)
+				return false;
+			foreach (var resolved in ResolveTypeDefs(sig, index)) {
+				if (string.Equals(resolved.FullName, target.FullName, StringComparison.Ordinal))
+					return true;
+			}
+			return TypeRefMatches(sig.ToTypeDefOrRef(), target);
+		}
+
+		static bool TypeHasAttributeUsage(IList<CustomAttribute> attributes, TypeDef target) {
+			foreach (var attr in attributes) {
+				if (TypeRefMatches(attr.AttributeType, target))
+					return true;
+			}
+			return false;
+		}
+
+		static bool AttributeMatches(CustomAttribute attribute, PatternMatcher matcher) {
+			var name = attribute.AttributeType?.FullName ?? attribute.AttributeType?.Name ?? string.Empty;
+			return matcher.IsMatch(name);
+		}
+
+		static string GetCallKind(Code code) {
+			return code switch {
+				Code.Call => "call",
+				Code.Callvirt => "callvirt",
+				Code.Newobj => "newobj",
+				Code.Calli => "calli",
+				Code.Jmp => "jmp",
+				_ => "call",
+			};
+		}
+
+		static string GetFieldAccessKind(Code code) {
+			return code switch {
+				Code.Ldfld => "read",
+				Code.Ldsfld => "read",
+				Code.Stfld => "write",
+				Code.Stsfld => "write",
+				Code.Ldflda => "address",
+				Code.Ldsflda => "address",
+				_ => "access",
+			};
+		}
+
+		static JToken FormatInstructionOperand(object? operand) {
+			if (operand is null)
+				return JValue.CreateNull();
+			switch (operand) {
+			case Instruction target:
+				return new JValue(target.Offset);
+			case Instruction[] targets:
+				return new JArray(targets.Select(t => t.Offset));
+			case IMethod method:
+				return new JValue(method.FullName);
+			case IField field:
+				return new JValue(field.FullName);
+			case IType type:
+				return new JValue(type.FullName);
+			case Local local:
+				return new JObject {
+					["index"] = local.Index,
+					["name"] = local.Name ?? string.Empty,
+					["type"] = local.Type?.FullName ?? string.Empty,
+				};
+			case Parameter param:
+				return new JObject {
+					["index"] = param.Index,
+					["name"] = param.Name ?? param.ParamDef?.Name ?? string.Empty,
+					["type"] = param.Type?.FullName ?? string.Empty,
+				};
+			default:
+				return JToken.FromObject(operand);
 			}
 		}
 

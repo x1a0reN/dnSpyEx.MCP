@@ -55,6 +55,7 @@
 - 2026-02-05: Added scripts/dev-build-commit.ps1 for build + auto-copy + commit/push.
 - 2026-02-05: Fixed UTF8String JSON output conversions and FnPtrSig MethodSig handling in McpRequestHandler; build passes.
 - 2026-02-05: Documented MCP feature set in README.
+- 2026-02-05: Added implementation/usage/attribute/IL/override/graph tools and updated README/tooling docs.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

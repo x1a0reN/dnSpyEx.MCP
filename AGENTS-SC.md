@@ -55,6 +55,7 @@
 - 2026-02-05：新增 scripts/dev-build-commit.ps1（构建 + 自动复制 + 提交推送）。
 - 2026-02-05：修复 McpRequestHandler 中 UTF8String JSON 输出与 FnPtrSig MethodSig 处理，构建通过。
 - 2026-02-05：在 README 中补充 MCP 功能列表。
+- 2026-02-05：新增实现/用法/特性/IL/覆写/图谱等工具，并同步更新 README/文档。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。
