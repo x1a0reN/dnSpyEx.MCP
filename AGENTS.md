@@ -54,6 +54,7 @@
 - 2026-02-05: Added new RPC tools for type/method inspection, references, call analysis, and search utilities.
 - 2026-02-05: Added scripts/dev-build-commit.ps1 for build + auto-copy + commit/push.
 - 2026-02-05: Fixed UTF8String JSON output conversions and FnPtrSig MethodSig handling in McpRequestHandler; build passes.
+- 2026-02-05: Documented MCP feature set in README.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

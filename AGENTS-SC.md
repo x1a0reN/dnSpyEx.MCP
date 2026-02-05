@@ -54,6 +54,7 @@
 - 2026-02-05：新增类型/方法信息、引用与调用分析、搜索增强等 RPC 工具。
 - 2026-02-05：新增 scripts/dev-build-commit.ps1（构建 + 自动复制 + 提交推送）。
 - 2026-02-05：修复 McpRequestHandler 中 UTF8String JSON 输出与 FnPtrSig MethodSig 处理，构建通过。
+- 2026-02-05：在 README 中补充 MCP 功能列表。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。

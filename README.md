@@ -14,6 +14,20 @@ AI client (HTTP JSON-RPC)
 dnSpyEx.MCP extension (inside dnSpyEx)
 ```
 
+## Features
+
+- HTTP JSON-RPC server (POST `/rpc`) with `/health` endpoint.
+- Assembly discovery and metadata: `listAssemblies`, `getAssemblyInfo`.
+- Namespace/type/member listing: `listNamespaces`, `listTypes`, `listMembers`.
+- Type inspection: `getTypeInfo`, `getTypeFields`, `getTypeProperty`, `getMethodSignature`.
+- Decompilation: `decompileMethod`, `decompileField`, `decompileProperty`, `decompileEvent`, `decompileType`.
+- Search utilities: `search`, `searchTypes`, `searchMembers`, `searchStrings`.
+- Reference analysis: `findReferences`.
+- Call analysis: `getCallers`, `getCallees`.
+- Type relations: `getTypeDependencies`, `getInheritanceTree`, `findPathToType`.
+- UI helpers: `getSelectedText`, `getSelectedMember`, `openInDnSpy`.
+- Usage examples: `exampleFlow`.
+
 ## Components (MCP-related)
 
 - `Extensions/dnSpyEx.MCP/` - dnSpyEx extension that starts an HTTP JSON-RPC server.
