@@ -135,7 +135,7 @@ namespace dnSpyEx.MCP.Ipc {
 			var name = NormalizeToolName(RequireString(parameters, "name"));
 			var args = parameters?["arguments"] as JObject;
 			var result = CallTool(name, args);
-			var payload = result.ToString(Formatting.None);
+			var payload = JsonConvert.SerializeObject(result);
 			return new JObject {
 				["content"] = new JArray {
 					new JObject {
