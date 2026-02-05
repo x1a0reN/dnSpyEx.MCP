@@ -53,6 +53,10 @@ namespace dnSpyEx.MCP.Ipc {
 		JToken Execute(string method, JObject? parameters) {
 			return RunOnUi(() => {
 				return method switch {
+					"initialize" => Initialize(parameters),
+					"tools/list" => ToolsList(),
+					"tools/call" => ToolsCall(parameters),
+					"notifications/initialized" => new JObject { ["ok"] = true },
 					"listAssemblies" => ListAssemblies(),
 					"getAssemblyInfo" => GetAssemblyInfo(parameters),
 					"listNamespaces" => ListNamespaces(parameters),
@@ -102,6 +106,121 @@ namespace dnSpyEx.MCP.Ipc {
 					_ => throw new RpcException(-32601, $"Method not found: {method}"),
 				};
 			});
+		}
+
+		JToken Initialize(JObject? parameters) {
+			return new JObject {
+				["protocolVersion"] = "2024-11-05",
+				["capabilities"] = new JObject {
+					["tools"] = new JObject(),
+				},
+				["serverInfo"] = new JObject {
+					["name"] = "dnSpyEx.MCP",
+					["version"] = GetServerVersion(),
+				},
+			};
+		}
+
+		JToken ToolsList() {
+			return new JObject {
+				["tools"] = BuildToolList(),
+			};
+		}
+
+		JToken ToolsCall(JObject? parameters) {
+			var name = NormalizeToolName(RequireString(parameters, "name"));
+			var args = parameters?["arguments"] as JObject;
+			var result = CallTool(name, args);
+			return new JObject {
+				["content"] = new JArray {
+					new JObject {
+						["type"] = "json",
+						["json"] = result,
+					},
+				},
+			};
+		}
+
+		JToken CallTool(string method, JObject? parameters) {
+			return method switch {
+				"listAssemblies" => ListAssemblies(),
+				"getAssemblyInfo" => GetAssemblyInfo(parameters),
+				"listNamespaces" => ListNamespaces(parameters),
+				"listTypes" => ListTypes(parameters),
+				"searchTypes" => SearchTypes(parameters),
+				"searchMembers" => SearchMembers(parameters),
+				"searchStrings" => SearchStrings(parameters),
+				"listMembers" => ListMembers(parameters),
+				"getTypeInfo" => GetTypeInfo(parameters),
+				"getTypeFields" => GetTypeFields(parameters),
+				"getTypeProperty" => GetTypeProperty(parameters),
+				"decompileMethod" => DecompileMember<MethodDef>(parameters),
+				"decompileField" => DecompileMember<FieldDef>(parameters),
+				"decompileProperty" => DecompileMember<PropertyDef>(parameters),
+				"decompileEvent" => DecompileMember<EventDef>(parameters),
+				"decompileType" => DecompileType(parameters),
+				"decompileMethodIL" => DecompileMethodIL(parameters),
+				"getMethodBodyInfo" => GetMethodBodyInfo(parameters),
+				"getMethodSignature" => GetMethodSignature(parameters),
+				"getFieldInfo" => GetFieldInfo(parameters),
+				"getEnumInfo" => GetEnumInfo(parameters),
+				"getStructInfo" => GetStructInfo(parameters),
+				"getInterfaceInfo" => GetInterfaceInfo(parameters),
+				"getTypeDependencies" => GetTypeDependencies(parameters),
+				"getInheritanceTree" => GetInheritanceTree(parameters),
+				"findPathToType" => FindPathToType(parameters),
+				"findReferences" => FindReferences(parameters),
+				"findMethodUsages" => FindMethodUsages(parameters),
+				"findFieldUsages" => FindFieldUsages(parameters),
+				"findTypeUsages" => FindTypeUsages(parameters),
+				"findImplementations" => FindImplementations(parameters),
+				"findDerivedTypes" => FindDerivedTypes(parameters),
+				"findAttributes" => FindAttributes(parameters),
+				"getOverridesChain" => GetOverridesChain(parameters),
+				"getAssemblyGraph" => GetAssemblyGraph(parameters),
+				"symbolResolve" => SymbolResolve(parameters),
+				"exportSelectedDecompile" => ExportSelectedDecompile(parameters),
+				"getCallers" => GetCallers(parameters),
+				"getCallees" => GetCallees(parameters),
+				"search" => Search(parameters),
+				"getSelectedText" => GetSelectedText(),
+				"getSelectedMember" => GetSelectedMember(),
+				"openInDnSpy" => OpenInDnSpy(parameters),
+				"exampleFlow" => ExampleFlow(),
+				"dnspy.exampleFlow" => ExampleFlow(),
+				_ => throw new RpcException(-32601, $"Method not found: {method}"),
+			};
+		}
+
+		static string NormalizeToolName(string name) {
+			if (name.StartsWith("dnspy.", StringComparison.OrdinalIgnoreCase))
+				return name.Substring("dnspy.".Length);
+			if (name.StartsWith("dnspyex.", StringComparison.OrdinalIgnoreCase))
+				return name.Substring("dnspyex.".Length);
+			return name;
+		}
+
+		static JArray BuildToolList() {
+			return new JArray(McpTools.Select(tool => new JObject {
+				["name"] = tool.Name,
+				["description"] = tool.Description,
+				["inputSchema"] = tool.InputSchema,
+			}));
+		}
+
+		static JObject BuildSchema(params string[] required) {
+			var schema = new JObject {
+				["type"] = "object",
+				["additionalProperties"] = true,
+			};
+			if (required.Length > 0)
+				schema["required"] = new JArray(required);
+			return schema;
+		}
+
+		static string GetServerVersion() {
+			var version = typeof(McpRequestHandler).Assembly.GetName().Version?.ToString();
+			return string.IsNullOrEmpty(version) ? "0.0.0" : version;
 		}
 
 		JToken ListAssemblies() {
@@ -2855,9 +2974,68 @@ namespace dnSpyEx.MCP.Ipc {
 			}
 		}
 
+		sealed class McpToolDef {
+			public string Name { get; }
+			public string Description { get; }
+			public JObject InputSchema { get; }
+
+			public McpToolDef(string name, string description, JObject inputSchema) {
+				Name = name;
+				Description = description;
+				InputSchema = inputSchema;
+			}
+		}
+
+		static readonly McpToolDef[] McpTools = {
+			new McpToolDef("listAssemblies", "List all loaded assemblies.", BuildSchema()),
+			new McpToolDef("getAssemblyInfo", "Get metadata for an assembly by module MVID.", BuildSchema("moduleMvid")),
+			new McpToolDef("listNamespaces", "List namespaces in a module.", BuildSchema("moduleMvid")),
+			new McpToolDef("listTypes", "List types in a namespace.", BuildSchema("moduleMvid", "namespace")),
+			new McpToolDef("listMembers", "List members of a type.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getTypeInfo", "Get detailed type information.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getTypeFields", "Get fields of a type with optional pattern filter.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getTypeProperty", "Get property info by token or name.", BuildSchema("moduleMvid")),
+			new McpToolDef("getMethodSignature", "Get detailed method signature.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("decompileMethod", "Decompile a method to C#.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("decompileField", "Decompile a field to C#.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("decompileProperty", "Decompile a property to C#.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("decompileEvent", "Decompile an event to C#.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("decompileType", "Decompile a type to C#.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("decompileMethodIL", "Get IL instructions for a method.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("getMethodBodyInfo", "Get method body statistics.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("searchTypes", "Search for types by name pattern.", BuildSchema("pattern")),
+			new McpToolDef("searchMembers", "Search for members by name pattern.", BuildSchema("pattern")),
+			new McpToolDef("searchStrings", "Search for string literals in IL.", BuildSchema("pattern")),
+			new McpToolDef("search", "Search metadata and IL text.", BuildSchema("searchText")),
+			new McpToolDef("findReferences", "Find references to a method/field/property/event/type.", BuildSchema("kind", "moduleMvid", "token")),
+			new McpToolDef("findMethodUsages", "Find call sites of a method.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("findFieldUsages", "Find field access sites.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("findTypeUsages", "Find type usage locations.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("findImplementations", "Find interface implementations or overrides.", BuildSchema("moduleMvid")),
+			new McpToolDef("findDerivedTypes", "Find derived types.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("findAttributes", "Search for attributes by name pattern.", BuildSchema("pattern")),
+			new McpToolDef("getOverridesChain", "Get override chain for a method.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("getAssemblyGraph", "Get assembly reference graph.", BuildSchema()),
+			new McpToolDef("symbolResolve", "Resolve a token or full name to a symbol.", BuildSchema()),
+			new McpToolDef("exportSelectedDecompile", "Decompile selection or token and optionally write to file.", BuildSchema()),
+			new McpToolDef("getCallers", "Find methods that call a method.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("getCallees", "Find methods called by a method.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("getTypeDependencies", "List types referenced by a type.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getInheritanceTree", "Get inheritance tree for a type.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("findPathToType", "Find path between types via fields/properties.", BuildSchema("fromModuleMvid", "fromTypeToken")),
+			new McpToolDef("getFieldInfo", "Get field metadata.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("getEnumInfo", "Get enum metadata and values.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getStructInfo", "Get struct metadata and layout.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getInterfaceInfo", "Get interface members.", BuildSchema("moduleMvid", "typeToken")),
+			new McpToolDef("getSelectedText", "Get current selected text from document viewer.", BuildSchema()),
+			new McpToolDef("getSelectedMember", "Get currently selected member in tree view.", BuildSchema()),
+			new McpToolDef("openInDnSpy", "Open a member/type in dnSpy.", BuildSchema("moduleMvid", "token")),
+			new McpToolDef("exampleFlow", "Get usage examples.", BuildSchema()),
+		};
+
 		static readonly SigComparer SigComparer = new SigComparer();
 
-		static readonly string ExampleFlowText =
+static readonly string ExampleFlowText =
 @"HTTP JSON-RPC example:
 POST http://127.0.0.1:13337/rpc
 {
@@ -2866,6 +3044,12 @@ POST http://127.0.0.1:13337/rpc
   ""method"": ""listAssemblies"",
   ""params"": {}
 }
+
+MCP standard example (Codex):
+POST http://127.0.0.1:13337/rpc
+{ ""jsonrpc"": ""2.0"", ""id"": 1, ""method"": ""initialize"", ""params"": { ""protocolVersion"": ""2024-11-05"", ""capabilities"": {}, ""clientInfo"": { ""name"": ""codex"", ""version"": ""1.0"" } } }
+{ ""jsonrpc"": ""2.0"", ""id"": 2, ""method"": ""tools/list"", ""params"": {} }
+{ ""jsonrpc"": ""2.0"", ""id"": 3, ""method"": ""tools/call"", ""params"": { ""name"": ""listAssemblies"", ""arguments"": {} } }
 
 Core methods:
 - listAssemblies
