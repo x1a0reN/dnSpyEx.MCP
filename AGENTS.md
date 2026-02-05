@@ -57,6 +57,8 @@
 - 2026-02-05: Documented MCP feature set in README.
 - 2026-02-05: Added implementation/usage/attribute/IL/override/graph tools and updated README/tooling docs.
 - 2026-02-05: Added MCP standard endpoints (initialize/tools/list/tools/call) and tool catalog mapping.
+- 2026-02-05: Added MCP resource endpoints (resources/list, resources/templates/list).
+- 2026-02-05: Adjusted tools/call response to text payload for MCP client compatibility.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

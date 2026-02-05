@@ -18,6 +18,7 @@ dnSpyEx.MCP extension (inside dnSpyEx)
 
 - HTTP JSON-RPC server (POST `/rpc`) with `/health` endpoint.
 - MCP standard endpoints over HTTP JSON-RPC: `initialize`, `tools/list`, `tools/call`.
+- MCP resource endpoints (empty catalog): `resources/list`, `resources/templates/list`.
 - Assembly discovery and metadata: `listAssemblies`, `getAssemblyInfo`.
 - Namespace/type/member listing: `listNamespaces`, `listTypes`, `listMembers`.
 - Type inspection: `getTypeInfo`, `getTypeFields`, `getTypeProperty`, `getMethodSignature`.

@@ -15,6 +15,7 @@ using dnSpy.Contracts.Documents.Tabs.DocViewer;
 using dnSpy.Contracts.Documents.TreeView;
 using dnSpy.Contracts.TreeView;
 using dnSpy.Contracts.Utilities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace dnSpyEx.MCP.Ipc {
@@ -57,6 +58,9 @@ namespace dnSpyEx.MCP.Ipc {
 					"tools/list" => ToolsList(),
 					"tools/call" => ToolsCall(parameters),
 					"notifications/initialized" => new JObject { ["ok"] = true },
+					"resources/list" => ResourcesList(),
+					"resources/templates/list" => ResourcesTemplatesList(),
+					"resources/read" => ResourcesRead(parameters),
 					"listAssemblies" => ListAssemblies(),
 					"getAssemblyInfo" => GetAssemblyInfo(parameters),
 					"listNamespaces" => ListNamespaces(parameters),
@@ -131,14 +135,33 @@ namespace dnSpyEx.MCP.Ipc {
 			var name = NormalizeToolName(RequireString(parameters, "name"));
 			var args = parameters?["arguments"] as JObject;
 			var result = CallTool(name, args);
+			var payload = result.ToString(Formatting.None);
 			return new JObject {
 				["content"] = new JArray {
 					new JObject {
-						["type"] = "json",
-						["json"] = result,
+						["type"] = "text",
+						["text"] = payload,
 					},
 				},
+				["isError"] = false,
 			};
+		}
+
+		JToken ResourcesList() {
+			return new JObject {
+				["resources"] = new JArray(),
+			};
+		}
+
+		JToken ResourcesTemplatesList() {
+			return new JObject {
+				["resourceTemplates"] = new JArray(),
+			};
+		}
+
+		JToken ResourcesRead(JObject? parameters) {
+			var uri = RequireString(parameters, "uri");
+			throw new RpcException(-32602, $"Resource not found: {uri}");
 		}
 
 		JToken CallTool(string method, JObject? parameters) {

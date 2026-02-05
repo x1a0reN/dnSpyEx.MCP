@@ -57,6 +57,8 @@
 - 2026-02-05：在 README 中补充 MCP 功能列表。
 - 2026-02-05：新增实现/用法/特性/IL/覆写/图谱等工具，并同步更新 README/文档。
 - 2026-02-05：新增 MCP 标准端点（initialize/tools/list/tools/call）及工具目录映射。
+- 2026-02-05：新增 MCP 资源端点（resources/list、resources/templates/list）。
+- 2026-02-05：调整 tools/call 响应为文本载荷以兼容 MCP 客户端。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。
