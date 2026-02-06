@@ -69,8 +69,6 @@
 - 2026-02-06: Added distributable skill-pack script (`scripts/package-skill-pack.ps1`) and packaging output layout under `.artifacts`.
 - 2026-02-06: Added cross-agent docs (`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`, `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`) for natural-language intent contract and onboarding.
 - 2026-02-06: Embedded intent contract, execution contract, minimal-question policy, and MCP usage policy directly into `skills/dnspy-agent-loop/SKILL.md` so Skill-only consumers can run the workflow without extra docs.
-- 2026-02-06: Added `scripts/ai-chat-cli.ps1`, an OpenAI-compatible CLI chat wrapper with env-based key/baseurl/model config and multi-turn command controls.
-- 2026-02-06: Documented AI Chat CLI usage and commands in README.
 
 ## Next Steps
 - Build the extension and confirm it compiles.
