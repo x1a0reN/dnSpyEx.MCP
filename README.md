@@ -131,6 +131,44 @@ Detailed guide:
 - `docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`
 - `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`
 
+## AI Chat CLI Wrapper
+
+A minimal OpenAI-compatible CLI wrapper is available:
+
+- Script: `scripts/ai-chat-cli.ps1`
+- API endpoint: `<baseurl>/v1/chat/completions`
+- Supports multi-turn chat and command controls.
+
+### Quick Start
+
+Set env vars:
+
+```PS
+$env:OPENAI_BASE_URL = "https://your-api-host"
+$env:OPENAI_API_KEY = "your_api_key"
+$env:OPENAI_MODEL = "gpt-4o-mini"
+```
+
+Run interactive chat:
+
+```PS
+.\scripts\ai-chat-cli.ps1
+```
+
+Run single prompt:
+
+```PS
+.\scripts\ai-chat-cli.ps1 -Once -Prompt "你好，给我一个 C# 控制台示例"
+```
+
+Built-in commands:
+
+- `/help`
+- `/exit`
+- `/clear`
+- `/save <path>`
+- `/system <prompt>`
+
 ## Build
 
 This repo still builds dnSpyEx. The upstream build script is kept.

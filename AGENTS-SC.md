@@ -69,6 +69,8 @@
 - 2026-02-06：新增可分发的 Skill 打包脚本（`scripts/package-skill-pack.ps1`），统一输出到 `.artifacts` 目录。
 - 2026-02-06：新增跨 Agentic 接入文档（`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`、`docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`），定义自然语言意图协议与落地步骤。
 - 2026-02-06：将意图契约、执行契约、最小追问规则与 MCP 使用策略直接内嵌到 `skills/dnspy-agent-loop/SKILL.md`，使仅导入 Skill 的 Agentic 也能独立执行闭环流程。
+- 2026-02-06：新增 `scripts/ai-chat-cli.ps1`，提供 OpenAI 兼容接口的 CLI 对话套壳（环境变量配置 key/baseurl/model，多轮对话与命令控制）。
+- 2026-02-06：README 新增 AI Chat CLI 的使用方式与命令说明。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。
