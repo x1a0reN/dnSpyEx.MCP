@@ -60,6 +60,9 @@
 - 2026-02-05: Added MCP resource endpoints (resources/list, resources/templates/list).
 - 2026-02-05: Adjusted tools/call response to text payload for MCP client compatibility.
 - 2026-02-05: Switched tools/call payload serialization to JsonConvert to avoid JToken.ToString(Formatting) runtime mismatch.
+- 2026-02-06: Added workflow automation layer for Unity Mono + BepInEx 5.x with staged CLI (`scripts/workflow/run.ps1`) and resume state/report outputs under `.workflow`.
+- 2026-02-06: Added workflow stage libraries for bootstrap/scaffold/agent-handoff/build/deploy/run/verify/report and GitHub release based BepInEx bootstrap.
+- 2026-02-06: Added plugin scaffold templates (`templates/BepInExPlugin/*`), demo profile (`profiles/demo.unity-mono.yaml`), and workflow/skill docs.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

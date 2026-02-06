@@ -60,6 +60,9 @@
 - 2026-02-05：新增 MCP 资源端点（resources/list、resources/templates/list）。
 - 2026-02-05：调整 tools/call 响应为文本载荷以兼容 MCP 客户端。
 - 2026-02-05：tools/call 序列化改用 JsonConvert，避免 JToken.ToString(Formatting) 运行时版本不匹配。
+- 2026-02-06：新增 Unity Mono + BepInEx 5.x 闭环工作流自动化层，提供分阶段 CLI（`scripts/workflow/run.ps1`）及 `.workflow` 下的状态/报告输出与断点续跑。
+- 2026-02-06：新增工作流阶段库（bootstrap/scaffold/agent-handoff/build/deploy/run/verify/report），并接入基于 GitHub Release 的 BepInEx 自动引导安装。
+- 2026-02-06：新增插件脚手架模板（`templates/BepInExPlugin/*`）、示例 profile（`profiles/demo.unity-mono.yaml`）与 workflow/skill 配套文档。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。

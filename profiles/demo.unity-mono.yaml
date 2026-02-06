@@ -1,0 +1,38 @@
+workflow:
+  name: demo-unity-mono
+
+game:
+  dir: D:\Games\YourGame
+  exe: YourGame.exe
+  arch: auto
+
+bepinex:
+  channel: stable
+  major: 5
+  source:
+    repo: BepInEx/BepInEx
+
+project:
+  name: DemoPlugin
+  id: com.example.demoplugin
+  version: 0.1.0
+  framework: net472
+  outputDll: ${project.name}.dll
+
+build:
+  configuration: Release
+
+deploy:
+  pluginsDir: ${game.dir}\BepInEx\plugins\${project.name}
+
+verify:
+  logFile: ${game.dir}\BepInEx\LogOutput.log
+  timeoutSec: 120
+  successPatterns:
+    - ${project.id}
+    - Plugin loaded
+
+agent:
+  mode: external
+  handoffFile: .\.workflow\agent-task.md
+  command: ""

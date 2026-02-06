@@ -41,6 +41,74 @@ dnSpyEx.MCP extension (inside dnSpyEx)
   - `Http/McpHttpServer.cs` HTTP JSON-RPC server (POST /rpc).
   - `Ipc/McpRequestHandler.cs` MVP tool handlers (runs on UI dispatcher).
 
+## Agentic Workflow (Unity Mono + BepInEx 5.x)
+
+This repo now includes an automation workflow layer for game-side loop closure:
+
+- Entry script: `scripts/workflow/run.ps1`
+- Stages: `bootstrap -> scaffold -> agent-handoff -> build -> deploy -> run -> verify -> report`
+- Resume support: `-Resume` continues from `.workflow/state.json`
+- Output reports: `.workflow/report.json` and `.workflow/report.md`
+
+### Quick Start
+
+1) Copy and edit profile:
+
+```PS
+Copy-Item .\profiles\demo.unity-mono.yaml .\profiles\mygame.yaml
+```
+
+2) Run full workflow:
+
+```PS
+.\scripts\workflow\run.ps1 -Profile .\profiles\mygame.yaml -Stage full
+```
+
+3) Resume after fixing errors:
+
+```PS
+.\scripts\workflow\run.ps1 -Profile .\profiles\mygame.yaml -Stage full -Resume
+```
+
+### Profile Keys
+
+Top-level keys in profile:
+
+- `workflow`
+- `game`
+- `bepinex`
+- `project`
+- `build`
+- `deploy`
+- `run`
+- `verify`
+- `agent`
+
+Default behavior:
+
+- `bepinex.major` is fixed to `5` in V1.
+- `project.framework` defaults to `net472`.
+- `deploy.pluginsDir` defaults to `${game.dir}\BepInEx\plugins\${project.name}`.
+- `verify.logFile` defaults to `${game.dir}\BepInEx\LogOutput.log`.
+- `verify.successPatterns` defaults to plugin id + BepInEx marker + `Plugin loaded`.
+
+### Generated Artifacts
+
+- `.workflow/state.json`: stage status and resumable context.
+- `.workflow/bootstrap/install-manifest.json`: BepInEx install metadata.
+- `.workflow/workspace/<ProjectName>/references.lock.json`: auto reference snapshot.
+- `.workflow/deploy.manifest.json`: deployed file manifest.
+- `.workflow/logs/build.log`: build output.
+- `.workflow/agent-task.md`: external Agent handoff task.
+
+### Skill Pack
+
+A companion skill pack is included:
+
+- `skills/dnspy-agent-loop/SKILL.md`
+- `skills/dnspy-agent-loop/references/workflow.md`
+- `skills/dnspy-agent-loop/references/troubleshooting.md`
+
 ## Build
 
 This repo still builds dnSpyEx. The upstream build script is kept.
