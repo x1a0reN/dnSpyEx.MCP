@@ -68,6 +68,7 @@
 - 2026-02-06: Scaffold now embeds `workflow.requirement` into generated `Plugin.cs` log output to preserve user intent in build artifacts.
 - 2026-02-06: Added distributable skill-pack script (`scripts/package-skill-pack.ps1`) and packaging output layout under `.artifacts`.
 - 2026-02-06: Added cross-agent docs (`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`, `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`) for natural-language intent contract and onboarding.
+- 2026-02-06: Embedded intent contract, execution contract, minimal-question policy, and MCP usage policy directly into `skills/dnspy-agent-loop/SKILL.md` so Skill-only consumers can run the workflow without extra docs.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

@@ -68,6 +68,7 @@
 - 2026-02-06：scaffold 阶段将 `workflow.requirement` 注入到生成的 `Plugin.cs` 日志中，保证需求在产物中可追踪。
 - 2026-02-06：新增可分发的 Skill 打包脚本（`scripts/package-skill-pack.ps1`），统一输出到 `.artifacts` 目录。
 - 2026-02-06：新增跨 Agentic 接入文档（`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`、`docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`），定义自然语言意图协议与落地步骤。
+- 2026-02-06：将意图契约、执行契约、最小追问规则与 MCP 使用策略直接内嵌到 `skills/dnspy-agent-loop/SKILL.md`，使仅导入 Skill 的 Agentic 也能独立执行闭环流程。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。

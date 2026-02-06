@@ -7,6 +7,32 @@ description: Build and operate the dnSpyEx reverse-engineering workflow for Unit
 
 执行 `scripts/workflow/run.ps1` 驱动闭环流程。
 
+## 意图契约（内置）
+- 将用户自然语言解析为以下字段：
+  - 必填：`game_dir`、`requirement`
+  - 可选：`game_name`、`game_exe`、`plugin_name`、`plugin_id`
+- 当 `game_dir` 和 `requirement` 已存在时，不再追问，直接执行。
+- 仅在以下场景最小追问：
+  - `game_dir` 缺失或无效
+  - `requirement` 缺失
+  - `game_exe` 自动探测失败
+
+## 执行契约（内置）
+- 固定阶段链路：`bootstrap -> scaffold -> build -> deploy -> run -> verify -> report`
+- 默认执行命令：
+```powershell
+.\scripts\workflow\run.ps1 -GameDir "<game_dir>" -GameExe "<game_exe>" -Requirement "<requirement>" -PluginName "<plugin_name>" -PluginId "<plugin_id>" -Stage full
+```
+- 失败恢复命令：
+```powershell
+.\scripts\workflow\run.ps1 -GameDir "<game_dir>" -GameExe "<game_exe>" -Requirement "<requirement>" -PluginName "<plugin_name>" -PluginId "<plugin_id>" -Stage full -Resume
+```
+- 最终必须返回：闭环是否成功、`.workflow/report.md`、`.workflow/report.json`、失败阶段与重试命令。
+
+## MCP 策略（内置）
+- 需要逆向分析时，要求目标 Agentic 已连接 dnSpyEx MCP（`http://127.0.0.1:13337/rpc`）。
+- 仅执行构建/部署/启动/验收闭环时，可不依赖 MCP。
+
 ## 执行要求
 - 优先使用 `full` 阶段完成端到端流程。
 - 失败后优先使用 `-Resume` 恢复，不从头重跑。
