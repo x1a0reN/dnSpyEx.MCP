@@ -66,6 +66,8 @@
 - 2026-02-06：将工作流简化为无 `agent-handoff` 版本，去除外部 agent.command 耦合，固定阶段为 bootstrap/scaffold/build/deploy/run/verify/report。
 - 2026-02-06：为 `run.ps1` 新增直传参数入口（`-GameDir`、`-GameExe`、`-Requirement`、`-PluginName`、`-PluginId`、`-PluginVersion`），支持 AI 基于一句话直接触发闭环。
 - 2026-02-06：scaffold 阶段将 `workflow.requirement` 注入到生成的 `Plugin.cs` 日志中，保证需求在产物中可追踪。
+- 2026-02-06：新增可分发的 Skill 打包脚本（`scripts/package-skill-pack.ps1`），统一输出到 `.artifacts` 目录。
+- 2026-02-06：新增跨 Agentic 接入文档（`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`、`docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`），定义自然语言意图协议与落地步骤。
 
 ## 下一步
 - 编译扩展项目，确认可正常构建。

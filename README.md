@@ -113,6 +113,24 @@ A companion skill pack is included:
 - `skills/dnspy-agent-loop/references/workflow.md`
 - `skills/dnspy-agent-loop/references/troubleshooting.md`
 
+### Package For Other Agentic
+
+Build distributable skill pack:
+
+```PS
+.\scripts\package-skill-pack.ps1
+```
+
+Output:
+
+- staging folder: `.artifacts/dnspy-agent-workflow-skillpack-<timestamp>/`
+- zip file: `.artifacts/dnspy-agent-workflow-skillpack-<timestamp>.zip`
+
+Detailed guide:
+
+- `docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`
+- `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`
+
 ## Build
 
 This repo still builds dnSpyEx. The upstream build script is kept.

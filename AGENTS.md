@@ -66,6 +66,8 @@
 - 2026-02-06: Simplified workflow by removing `agent-handoff` and external agent command coupling; stage chain is now bootstrap/scaffold/build/deploy/run/verify/report.
 - 2026-02-06: Added direct run arguments (`-GameDir`, `-GameExe`, `-Requirement`, `-PluginName`, `-PluginId`, `-PluginVersion`) so AI can run one-command workflow without authoring a profile first.
 - 2026-02-06: Scaffold now embeds `workflow.requirement` into generated `Plugin.cs` log output to preserve user intent in build artifacts.
+- 2026-02-06: Added distributable skill-pack script (`scripts/package-skill-pack.ps1`) and packaging output layout under `.artifacts`.
+- 2026-02-06: Added cross-agent docs (`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`, `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`) for natural-language intent contract and onboarding.
 
 ## Next Steps
 - Build the extension and confirm it compiles.
