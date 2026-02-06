@@ -5,10 +5,14 @@
 .\scripts\workflow\run.ps1 -Profile .\profiles\demo.unity-mono.yaml -Stage full
 ```
 
+或直接传入路径与需求（最简）：
+```powershell
+.\scripts\workflow\run.ps1 -GameDir "D:\Games\YourGame" -GameExe "YourGame.exe" -Requirement "主角无敌" -Stage full
+```
+
 ## 阶段定义
 - `bootstrap`: 检测游戏目录、识别架构、安装 BepInEx（如缺失）。
 - `scaffold`: 生成插件项目，自动扫描并写入引用，产出 `references.lock.json`。
-- `agent-handoff`: 产出 `agent-task.md`，可选执行 `agent.command`。
 - `build`: 执行 `dotnet build` 并写入 `.workflow/logs/build.log`。
 - `deploy`: 复制到 `BepInEx\plugins` 并保留备份。
 - `run`: 启动或复用游戏进程，记录 PID。

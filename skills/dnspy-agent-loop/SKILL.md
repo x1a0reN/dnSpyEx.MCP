@@ -1,6 +1,6 @@
 ---
 name: dnspy-agent-loop
-description: Build and operate the dnSpyEx Agentic reverse-engineering workflow for Unity Mono + BepInEx 5.x using scripts/workflow/run.ps1. Use this skill when setting up bootstrap/scaffold/build/deploy/run/verify/report, preparing agent handoff content, diagnosing workflow failures, and presenting course demos with resume/recovery.
+description: Build and operate the dnSpyEx reverse-engineering workflow for Unity Mono + BepInEx 5.x using scripts/workflow/run.ps1. Use this skill when setting up bootstrap/scaffold/build/deploy/run/verify/report, mapping user requirement text into workflow config, diagnosing workflow failures, and presenting course demos with resume/recovery.
 ---
 
 # dnspy-agent-loop
@@ -16,7 +16,6 @@ description: Build and operate the dnSpyEx Agentic reverse-engineering workflow 
 ## 阶段策略
 - `bootstrap`: 先校验 `game.dir` 与 Unity Managed 目录，再处理 BepInEx。
 - `scaffold`: 只通过模板生成项目并自动写引用，避免手工改引用。
-- `agent-handoff`: 先产出 handoff 文件，再让外部 Agent 写码。
 - `build/deploy/run/verify`: 每阶段结束记录证据文件和关键路径。
 - `report`: 汇总结果并提供可直接复制的重试命令。
 

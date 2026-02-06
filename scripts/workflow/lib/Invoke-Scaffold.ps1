@@ -10,6 +10,16 @@ function Convert-ToIdentifier {
     return $normalized
 }
 
+function Convert-ToCSharpStringLiteral {
+    param([string]$Value)
+    if ($null -eq $Value) {
+        return ""
+    }
+    $escaped = $Value.Replace("\", "\\").Replace('"', '\"')
+    $escaped = $escaped.Replace("`r", "\r").Replace("`n", "\n")
+    return $escaped
+}
+
 function Get-RelativePathSafe {
     param(
         [string]$BasePath,
@@ -46,7 +56,7 @@ function ConvertTo-ReferenceXml {
 }
 
 function Invoke-WorkflowScaffold {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
 
     $cfg = $Context.Config
     $state = $Context.State
@@ -100,11 +110,13 @@ function Invoke-WorkflowScaffold {
     Set-Content -LiteralPath $csprojPath -Value $csprojContent -Encoding UTF8
 
     $pluginContent = Get-Content -LiteralPath $pluginSourcePath -Raw -Encoding UTF8
+    $requirementText = Convert-ToCSharpStringLiteral -Value ([string]$cfg.workflow.requirement)
     $pluginContent = $pluginContent.Replace("__PLUGIN_NAMESPACE__", $pluginNamespace)
     $pluginContent = $pluginContent.Replace("__PLUGIN_CLASS__", $pluginClass)
     $pluginContent = $pluginContent.Replace("__PLUGIN_ID__", [string]$cfg.project.id)
     $pluginContent = $pluginContent.Replace("__PLUGIN_NAME__", $projectName)
     $pluginContent = $pluginContent.Replace("__PLUGIN_VERSION__", [string]$cfg.project.version)
+    $pluginContent = $pluginContent.Replace("__WORKFLOW_REQUIREMENT__", $requirementText)
     Set-Content -LiteralPath $pluginSourcePath -Value $pluginContent -Encoding UTF8
 
     $referencesLock = Join-Path $projectRoot "references.lock.json"

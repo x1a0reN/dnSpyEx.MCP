@@ -63,6 +63,9 @@
 - 2026-02-06: Added workflow automation layer for Unity Mono + BepInEx 5.x with staged CLI (`scripts/workflow/run.ps1`) and resume state/report outputs under `.workflow`.
 - 2026-02-06: Added workflow stage libraries for bootstrap/scaffold/agent-handoff/build/deploy/run/verify/report and GitHub release based BepInEx bootstrap.
 - 2026-02-06: Added plugin scaffold templates (`templates/BepInExPlugin/*`), demo profile (`profiles/demo.unity-mono.yaml`), and workflow/skill docs.
+- 2026-02-06: Simplified workflow by removing `agent-handoff` and external agent command coupling; stage chain is now bootstrap/scaffold/build/deploy/run/verify/report.
+- 2026-02-06: Added direct run arguments (`-GameDir`, `-GameExe`, `-Requirement`, `-PluginName`, `-PluginId`, `-PluginVersion`) so AI can run one-command workflow without authoring a profile first.
+- 2026-02-06: Scaffold now embeds `workflow.requirement` into generated `Plugin.cs` log output to preserve user intent in build artifacts.
 
 ## Next Steps
 - Build the extension and confirm it compiles.

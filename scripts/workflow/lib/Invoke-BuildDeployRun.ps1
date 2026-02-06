@@ -1,5 +1,5 @@
 function Get-WorkflowProjectPath {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $state = $Context.State
     $fromState = [string](Get-ContextValue -State $state -StageName "scaffold" -Key "csprojPath")
     if (-not [string]::IsNullOrWhiteSpace($fromState) -and (Test-Path -LiteralPath $fromState)) {
@@ -30,80 +30,8 @@ function Get-BuildSuggestion {
     return "Review .workflow/logs/build.log and retry with -Resume after minimal fixes."
 }
 
-function Invoke-WorkflowAgentHandoff {
-    param([hashtable]$Context)
-    $cfg = $Context.Config
-    if ([string]$cfg.agent.mode -ne "external") {
-        throw "V1 only supports agent.mode=external."
-    }
-
-    $csprojPath = Get-WorkflowProjectPath -Context $Context
-    $projectDir = Split-Path -Parent $csprojPath
-    $handoffPath = [string]$cfg.agent.handoffFile
-    $handoffDir = Split-Path -Parent $handoffPath
-    if (-not (Test-Path -LiteralPath $handoffDir)) {
-        New-Item -ItemType Directory -Path $handoffDir -Force | Out-Null
-    }
-
-    $content = @"
-# Agentic Task Handoff
-
-## Objective
-- Implement plugin feature in `Plugin.cs` under project: `$($cfg.project.name)`.
-- Keep BepInEx plugin metadata stable:
-  - id: `$($cfg.project.id)`
-  - version: `$($cfg.project.version)`
-
-## Paths
-- Project: `$projectDir`
-- Project file: `$csprojPath`
-- Build output DLL: `$($cfg.project.outputDll)`
-
-## MCP Integration Guidance
-- MCP endpoint: `http://127.0.0.1:13337/rpc`
-- Suggested calls:
-  - `tools/list`
-  - `tools/call` with `listAssemblies`, `searchTypes`, `decompileType`, `findReferences`
-
-## Regression Checklist
-- Build passes (`dotnet build`).
-- Deploy stage copies DLL into game BepInEx plugins directory.
-- Verify stage matches one of:
-  - `$($cfg.project.id)`
-  - `Plugin loaded`
-
-## Notes
-- Avoid changing project metadata unless required.
-- Keep logs explicit in `Awake()` or `Start()` to simplify verify stage.
-"@
-    Set-Content -LiteralPath $handoffPath -Value $content -Encoding UTF8
-
-    $command = [string]$cfg.agent.command
-    $exitCode = $null
-    if (-not [string]::IsNullOrWhiteSpace($command)) {
-        Push-Location $projectDir
-        try {
-            & powershell -NoProfile -ExecutionPolicy Bypass -Command $command
-            $exitCode = $LASTEXITCODE
-        }
-        finally {
-            Pop-Location
-        }
-        if ($exitCode -ne 0) {
-            throw "agent.command failed with exit code $exitCode."
-        }
-    }
-
-    return @{
-        handoffFile = $handoffPath
-        projectDir = $projectDir
-        agentCommandExecuted = (-not [string]::IsNullOrWhiteSpace($command))
-        agentCommandExitCode = $exitCode
-    }
-}
-
 function Invoke-WorkflowBuild {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $cfg = $Context.Config
     $csprojPath = Get-WorkflowProjectPath -Context $Context
     $projectDir = Split-Path -Parent $csprojPath
@@ -140,7 +68,7 @@ function Invoke-WorkflowBuild {
 }
 
 function Invoke-WorkflowDeploy {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $cfg = $Context.Config
     $state = $Context.State
     $buildOutputDir = [string](Get-ContextValue -State $state -StageName "build" -Key "buildOutputDir")
@@ -193,7 +121,7 @@ function Invoke-WorkflowDeploy {
 }
 
 function Invoke-WorkflowRun {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $cfg = $Context.Config
     $state = $Context.State
     $exePath = [string](Get-ContextValue -State $state -StageName "bootstrap" -Key "gameExePath")

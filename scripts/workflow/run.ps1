@@ -1,7 +1,12 @@
 param(
-    [Parameter(Mandatory = $true)]
     [string]$Profile,
-    [ValidateSet("bootstrap", "scaffold", "agent-handoff", "build", "deploy", "run", "verify", "report", "full")]
+    [string]$GameDir,
+    [string]$GameExe,
+    [string]$Requirement,
+    [string]$PluginName,
+    [string]$PluginId,
+    [string]$PluginVersion,
+    [ValidateSet("bootstrap", "scaffold", "build", "deploy", "run", "verify", "report", "full")]
     [string]$Stage = "full",
     [switch]$Resume
 )
@@ -15,7 +20,7 @@ $script:StatePath = Join-Path $script:WorkflowRoot "state.json"
 $script:ReportPath = Join-Path $script:WorkflowRoot "report.json"
 $script:ReportMarkdownPath = Join-Path $script:WorkflowRoot "report.md"
 $script:LogDir = Join-Path $script:WorkflowRoot "logs"
-$script:StageSequence = @("bootstrap", "scaffold", "agent-handoff", "build", "deploy", "run", "verify", "report")
+$script:StageSequence = @("bootstrap", "scaffold", "build", "deploy", "run", "verify", "report")
 
 New-Item -ItemType Directory -Path $script:WorkflowRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $script:LogDir -Force | Out-Null
@@ -330,6 +335,7 @@ function Get-ConfigDefaults {
     return [ordered]@{
         workflow = [ordered]@{
             name = "dnspyex-agent-loop-v1"
+            requirement = "No explicit requirement provided."
         }
         game = [ordered]@{
             exe = $null
@@ -364,11 +370,6 @@ function Get-ConfigDefaults {
             logFile = $null
             timeoutSec = 120
             successPatterns = @()
-        }
-        agent = [ordered]@{
-            mode = "external"
-            handoffFile = ".\.workflow\agent-task.md"
-            command = $null
         }
     }
 }
@@ -481,7 +482,6 @@ function Normalize-WorkflowConfig {
     } else {
         $cfg.verify.logFile = Resolve-PathByProfile -PathValue ([string]$cfg.verify.logFile) -ProfileDir $ProfileDir
     }
-    $cfg.agent.handoffFile = Resolve-PathByProfile -PathValue ([string]$cfg.agent.handoffFile) -ProfileDir $ProfileDir
     if ($cfg.verify.successPatterns -isnot [System.Collections.IEnumerable] -or $cfg.verify.successPatterns -is [string]) {
         $cfg.verify.successPatterns = @()
     }
@@ -498,16 +498,56 @@ function Normalize-WorkflowConfig {
     if ([int]$cfg.bepinex.major -ne 5) {
         throw "V1 only supports bepinex.major = 5."
     }
-    if ([string]::IsNullOrWhiteSpace([string]$cfg.agent.mode)) {
-        $cfg.agent.mode = "external"
+    if ([string]::IsNullOrWhiteSpace([string]$cfg.workflow.requirement)) {
+        $cfg.workflow.requirement = "No explicit requirement provided."
     }
     return $cfg
+}
+
+function Build-ConfigOverlayFromArgs {
+    param(
+        [string]$GameDirValue,
+        [string]$GameExeValue,
+        [string]$RequirementValue,
+        [string]$PluginNameValue,
+        [string]$PluginIdValue,
+        [string]$PluginVersionValue
+    )
+    $overlay = [ordered]@{}
+    if (-not [string]::IsNullOrWhiteSpace($GameDirValue) -or -not [string]::IsNullOrWhiteSpace($GameExeValue)) {
+        $overlay.game = [ordered]@{}
+        if (-not [string]::IsNullOrWhiteSpace($GameDirValue)) {
+            $overlay.game.dir = $GameDirValue
+        }
+        if (-not [string]::IsNullOrWhiteSpace($GameExeValue)) {
+            $overlay.game.exe = $GameExeValue
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RequirementValue)) {
+        if (-not $overlay.Contains("workflow")) {
+            $overlay.workflow = [ordered]@{}
+        }
+        $overlay.workflow.requirement = $RequirementValue
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PluginNameValue) -or -not [string]::IsNullOrWhiteSpace($PluginIdValue) -or -not [string]::IsNullOrWhiteSpace($PluginVersionValue)) {
+        $overlay.project = [ordered]@{}
+        if (-not [string]::IsNullOrWhiteSpace($PluginNameValue)) {
+            $overlay.project.name = $PluginNameValue
+        }
+        if (-not [string]::IsNullOrWhiteSpace($PluginIdValue)) {
+            $overlay.project.id = $PluginIdValue
+        }
+        if (-not [string]::IsNullOrWhiteSpace($PluginVersionValue)) {
+            $overlay.project.version = $PluginVersionValue
+        }
+    }
+    return $overlay
 }
 
 function New-InitialState {
     param(
         [string]$ProfilePath,
-        [hashtable]$Config
+        [System.Collections.IDictionary]$Config
     )
     $stages = [ordered]@{}
     foreach ($name in $script:StageSequence) {
@@ -653,12 +693,11 @@ function Get-ContextValue {
 function Invoke-StageCore {
     param(
         [string]$StageName,
-        [hashtable]$Context
+        [System.Collections.IDictionary]$Context
     )
     switch ($StageName) {
         "bootstrap" { return Invoke-WorkflowBootstrap -Context $Context }
         "scaffold" { return Invoke-WorkflowScaffold -Context $Context }
-        "agent-handoff" { return Invoke-WorkflowAgentHandoff -Context $Context }
         "build" { return Invoke-WorkflowBuild -Context $Context }
         "deploy" { return Invoke-WorkflowDeploy -Context $Context }
         "run" { return Invoke-WorkflowRun -Context $Context }
@@ -668,15 +707,29 @@ function Invoke-StageCore {
     }
 }
 
-$profilePath = Resolve-Path -Path $Profile | Select-Object -ExpandProperty Path
-$profileDir = Split-Path -Parent $profilePath
-
-$profileConfig = Import-WorkflowProfile -ProfilePath $profilePath
-if ($profileConfig -isnot [hashtable]) {
-    $profileConfig = ConvertTo-Hashtable -InputObject $profileConfig
+$profilePath = "<inline>"
+$profileDir = $script:RepoRoot
+$profileConfig = [ordered]@{}
+if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+    $profilePath = Resolve-Path -Path $Profile | Select-Object -ExpandProperty Path
+    $profileDir = Split-Path -Parent $profilePath
+    $profileConfig = Import-WorkflowProfile -ProfilePath $profilePath
+    if ($profileConfig -isnot [System.Collections.IDictionary]) {
+        $profileConfig = ConvertTo-Hashtable -InputObject $profileConfig
+    }
 }
+
+$argOverlay = Build-ConfigOverlayFromArgs -GameDirValue $GameDir -GameExeValue $GameExe -RequirementValue $Requirement -PluginNameValue $PluginName -PluginIdValue $PluginId -PluginVersionValue $PluginVersion
 $defaults = Get-ConfigDefaults
 $merged = Merge-Hashtable -Base $defaults -Overlay $profileConfig
+if ($argOverlay.Count -gt 0) {
+    $merged = Merge-Hashtable -Base $merged -Overlay $argOverlay
+}
+
+if ($null -eq $merged.game -or [string]::IsNullOrWhiteSpace([string]$merged.game.dir)) {
+    throw "Missing game path. Provide -Profile with game.dir or pass -GameDir directly."
+}
+
 $config = Normalize-WorkflowConfig -RawConfig $merged -ProfileDir $profileDir
 
 $state = $null
@@ -716,7 +769,7 @@ foreach ($stageName in $stagesToRun) {
     Start-Stage -State $state -StageName $stageName
     try {
         $stageData = Invoke-StageCore -StageName $stageName -Context $context
-        if ($stageData -isnot [hashtable]) {
+        if ($stageData -isnot [System.Collections.IDictionary]) {
             $stageData = @{}
         }
         Complete-Stage -State $state -StageName $stageName -StageData $stageData

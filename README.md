@@ -46,7 +46,7 @@ dnSpyEx.MCP extension (inside dnSpyEx)
 This repo now includes an automation workflow layer for game-side loop closure:
 
 - Entry script: `scripts/workflow/run.ps1`
-- Stages: `bootstrap -> scaffold -> agent-handoff -> build -> deploy -> run -> verify -> report`
+- Stages: `bootstrap -> scaffold -> build -> deploy -> run -> verify -> report`
 - Resume support: `-Resume` continues from `.workflow/state.json`
 - Output reports: `.workflow/report.json` and `.workflow/report.md`
 
@@ -62,6 +62,12 @@ Copy-Item .\profiles\demo.unity-mono.yaml .\profiles\mygame.yaml
 
 ```PS
 .\scripts\workflow\run.ps1 -Profile .\profiles\mygame.yaml -Stage full
+```
+
+Or run with direct arguments (no profile required):
+
+```PS
+.\scripts\workflow\run.ps1 -GameDir "D:\Games\YourGame" -GameExe "YourGame.exe" -Requirement "主角无敌" -Stage full
 ```
 
 3) Resume after fixing errors:
@@ -82,7 +88,6 @@ Top-level keys in profile:
 - `deploy`
 - `run`
 - `verify`
-- `agent`
 
 Default behavior:
 
@@ -99,7 +104,6 @@ Default behavior:
 - `.workflow/workspace/<ProjectName>/references.lock.json`: auto reference snapshot.
 - `.workflow/deploy.manifest.json`: deployed file manifest.
 - `.workflow/logs/build.log`: build output.
-- `.workflow/agent-task.md`: external Agent handoff task.
 
 ### Skill Pack
 

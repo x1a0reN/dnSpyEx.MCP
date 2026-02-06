@@ -1,5 +1,6 @@
 workflow:
   name: demo-unity-mono
+  requirement: 主角无敌（离线单机测试）
 
 game:
   dir: D:\Games\YourGame
@@ -31,8 +32,3 @@ verify:
   successPatterns:
     - ${project.id}
     - Plugin loaded
-
-agent:
-  mode: external
-  handoffFile: .\.workflow\agent-task.md
-  command: ""

@@ -14,7 +14,7 @@
 - 症状: `CS0246`
   - 处理: 缺引用，重跑 `scaffold` 或检查 `references.lock.json`。
 - 症状: `CS0103`
-  - 处理: 变量或成员名错误，回看 Agent 生成代码。
+  - 处理: 变量或成员名错误，回看 `Plugin.cs` 中需求实现代码。
 - 证据: `.workflow/logs/build.log`
 
 ## deploy/run/verify 失败

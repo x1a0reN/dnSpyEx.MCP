@@ -46,7 +46,6 @@ function Get-StageFailureCategory {
     switch ($StageName) {
         "bootstrap" { return "environment" }
         "scaffold" { return "project-setup" }
-        "agent-handoff" { return "agent" }
         "build" { return "build" }
         "deploy" { return "deploy" }
         "run" { return "runtime-start" }
@@ -56,7 +55,7 @@ function Get-StageFailureCategory {
 }
 
 function Invoke-WorkflowVerify {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
 
     $cfg = $Context.Config
     $state = $Context.State
@@ -122,7 +121,7 @@ function Invoke-WorkflowVerify {
 
 function Invoke-WorkflowReport {
     param(
-        [hashtable]$Context,
+        [System.Collections.IDictionary]$Context,
         [string]$FailureStage = $null,
         [string]$FailureMessage = $null
     )

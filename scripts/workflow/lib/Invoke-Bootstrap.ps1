@@ -1,5 +1,5 @@
 function Get-WorkflowGameExePath {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $cfg = $Context.Config
     $gameDir = [string]$cfg.game.dir
     if (-not (Test-Path -LiteralPath $gameDir)) {
@@ -24,7 +24,7 @@ function Get-WorkflowGameExePath {
 
 function Get-WorkflowGameArch {
     param(
-        [hashtable]$Context,
+        [System.Collections.IDictionary]$Context,
         [string]$ExePath
     )
     $configured = [string]$Context.Config.game.arch
@@ -49,7 +49,7 @@ function Get-WorkflowGameArch {
 }
 
 function Get-WorkflowManagedDir {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
     $cfg = $Context.Config
     if (-not [string]::IsNullOrWhiteSpace([string]$cfg.game.unityManagedDir)) {
         $managedPath = Resolve-PathByProfile -PathValue ([string]$cfg.game.unityManagedDir) -ProfileDir $Context.ProfileDir
@@ -121,7 +121,7 @@ function Get-BepInExReleaseAsset {
 }
 
 function Invoke-WorkflowBootstrap {
-    param([hashtable]$Context)
+    param([System.Collections.IDictionary]$Context)
 
     $cfg = $Context.Config
     $gameDir = [string]$cfg.game.dir
