@@ -69,6 +69,7 @@
 - 2026-02-06: Added distributable skill-pack script (`scripts/package-skill-pack.ps1`) and packaging output layout under `.artifacts`.
 - 2026-02-06: Added cross-agent docs (`docs/AGENTIC-SKILL-PACK-USAGE.zh-CN.md`, `docs/AGENTIC-INTENT-CONTRACT.zh-CN.md`) for natural-language intent contract and onboarding.
 - 2026-02-06: Embedded intent contract, execution contract, minimal-question policy, and MCP usage policy directly into `skills/dnspy-agent-loop/SKILL.md` so Skill-only consumers can run the workflow without extra docs.
+- 2026-02-10: Changed default HTTP JSON-RPC port from `13337` to `23337`, updated examples/docs, and rebuilt successfully with 0 errors.
 
 ## Next Steps
 - Build the extension and confirm it compiles.
@@ -102,7 +103,7 @@ dnSpy\dnSpy\bin\Release\net10.0-windows\dnSpy.exe
 
 2) Send HTTP JSON-RPC to:
 ```
-http://127.0.0.1:13337/rpc
+http://127.0.0.1:23337/rpc
 ```
 
 Example:
@@ -116,8 +117,8 @@ Example:
 ```
 
 ### HTTP configuration
-- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:13337/`)
-- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `13337`)
+- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:23337/`)
+- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `23337`)
 
 ### Available MCP tools
 - listAssemblies
@@ -156,7 +157,7 @@ Example:
 ### Connect to an AI IDE
 This server is HTTP JSON-RPC (not stdio MCP). Configure your client to POST to:
 ```
-http://127.0.0.1:13337/rpc
+http://127.0.0.1:23337/rpc
 ```
 Use `DNSPYEX_MCP_HTTP_PREFIX` or `DNSPYEX_MCP_HTTP_PORT` to override.
 

@@ -10,7 +10,7 @@ using Newtonsoft.Json.Linq;
 
 namespace dnSpyEx.MCP.Http {
 	sealed class McpHttpServer : IDisposable {
-		const int DefaultPort = 13337;
+		const int DefaultPort = 23337;
 		const string PrefixEnvVar = "DNSPYEX_MCP_HTTP_PREFIX";
 		const string PortEnvVar = "DNSPYEX_MCP_HTTP_PORT";
 

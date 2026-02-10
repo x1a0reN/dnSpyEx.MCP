@@ -3060,7 +3060,7 @@ namespace dnSpyEx.MCP.Ipc {
 
 static readonly string ExampleFlowText =
 @"HTTP JSON-RPC example:
-POST http://127.0.0.1:13337/rpc
+POST http://127.0.0.1:23337/rpc
 {
   ""jsonrpc"": ""2.0"",
   ""id"": 1,
@@ -3069,7 +3069,7 @@ POST http://127.0.0.1:13337/rpc
 }
 
 MCP standard example (Codex):
-POST http://127.0.0.1:13337/rpc
+POST http://127.0.0.1:23337/rpc
 { ""jsonrpc"": ""2.0"", ""id"": 1, ""method"": ""initialize"", ""params"": { ""protocolVersion"": ""2024-11-05"", ""capabilities"": {}, ""clientInfo"": { ""name"": ""codex"", ""version"": ""1.0"" } } }
 { ""jsonrpc"": ""2.0"", ""id"": 2, ""method"": ""tools/list"", ""params"": {} }
 { ""jsonrpc"": ""2.0"", ""id"": 3, ""method"": ""tools/call"", ""params"": { ""name"": ""listAssemblies"", ""arguments"": {} } }

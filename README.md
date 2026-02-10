@@ -154,7 +154,7 @@ dnSpy\dnSpy\bin\Release\net48\dnSpy.exe
 
 2) Send HTTP JSON-RPC to:
 ```
-http://127.0.0.1:13337/rpc
+http://127.0.0.1:23337/rpc
 ```
 
 Example:
@@ -210,8 +210,8 @@ MCP standard example (Codex):
 ## Configuration
 
 HTTP server configuration:
-- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:13337/`)
-- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `13337`)
+- Env var: `DNSPYEX_MCP_HTTP_PREFIX` (e.g. `http://127.0.0.1:23337/`)
+- Env var: `DNSPYEX_MCP_HTTP_PORT` (default `23337`)
 
 ## Upstream
 

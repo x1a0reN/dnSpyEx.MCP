@@ -102,7 +102,7 @@ dnSpy\dnSpy\bin\Release\net10.0-windows\dnSpy.exe
 
 2) 向以下地址发送 HTTP JSON-RPC：
 ```
-http://127.0.0.1:13337/rpc
+http://127.0.0.1:23337/rpc
 ```
 
 示例：
@@ -116,8 +116,8 @@ http://127.0.0.1:13337/rpc
 ```
 
 ### HTTP 配置
-- 环境变量：`DNSPYEX_MCP_HTTP_PREFIX`（例如 `http://127.0.0.1:13337/`）
-- 环境变量：`DNSPYEX_MCP_HTTP_PORT`（默认 `13337`）
+- 环境变量：`DNSPYEX_MCP_HTTP_PREFIX`（例如 `http://127.0.0.1:23337/`）
+- 环境变量：`DNSPYEX_MCP_HTTP_PORT`（默认 `23337`）
 
 ### 可用 MCP 工具
 - listAssemblies
@@ -156,10 +156,11 @@ http://127.0.0.1:13337/rpc
 ### 接入 AI IDE
 这是 HTTP JSON-RPC（非 stdio MCP）。将客户端配置为 POST 到：
 ```
-http://127.0.0.1:13337/rpc
+http://127.0.0.1:23337/rpc
 ```
 如需覆盖，使用 `DNSPYEX_MCP_HTTP_PREFIX` 或 `DNSPYEX_MCP_HTTP_PORT`。
 
 ## 备注
 - 用户要求每次进度更新都同步记录到 AGENTS.md。
 - 用户确认只使用 .NET 10 构建（不再使用 net48），并要求构建时不要使用 DisableDnSpyExInstallCopy=true 以便自动复制插件。
+- 2026-02-10：默认 HTTP JSON-RPC 端口改为 23337，已同步示例与文档，并完成重编译（0 errors）。
